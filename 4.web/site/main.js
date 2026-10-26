@@ -33,15 +33,15 @@ $("intro").addEventListener("cancel", (e) => e.preventDefault());   // esc does 
 // y (centre of the button cap, in column pitches). page down (bar - 1) is the left arrow.
 const STEP = [39, 38, 37, 36, 31, 30, 29, 28, 23, 22, 21, 20, 15, 14, 13, 12];
 const SEL = [16, 17, 18, 19, 8, 9, 10, 11];
-const STEP_LBL = ["drum1", "drum2", "drum3", "snare", "clp/cym", "cl hh", "op hh", "kit",
-                  "morph", "song", "project", "<b>config</b>", "<b>reload</b>", "<b>last step</b>", "<b>fx</b>", "<b>pattern</b>"];
+const STEP_LBL = ["DRUM1", "DRUM2", "DRUM3", "SNARE", "CLP/CYM", "CL HH", "OP HH", "KIT",
+                  "MORPH", "SONG", "PROJECT", "<b>CONFIG</b>", "<b>RELOAD</b>", "<b>LAST STEP</b>", "<b>FX</b>", "<b>PATTERN</b>"];
 const PANEL = [            // dom order: voice, select, steps, mode rows
   ["voice", [[40, "◀", 8], [0, "▶", 9], ...[1, 2, 3, 4, 5, 6, 7].map((v) =>
-    [v, ["drum1", "drum2", "drum3", "snare", "clp/cym", "cl hh", "op hh"][v - 1], 9 + v])], 4.83],
-  ["sel", SEL.map((b, k) => [b, ["osc", "aeg", "mod", "fm", "click", "filter", "lfo", "mix"][k], 9 + k]), 5.83],
+    [v, ["DRUM1", "DRUM2", "DRUM3", "SNARE", "CLP/CYM", "CL HH", "OP HH"][v - 1], 9 + v])], 4.83],
+  ["sel", SEL.map((b, k) => [b, ["OSC", "AEG", "MOD", "FM", "CLICK", "FILTER", "LFO", "MIX"][k], 9 + k]), 5.83],
   ["step", STEP.map((b, k) => [b, STEP_LBL[k], 1 + k]), 6.84],
-  ["mode", [[32, "<b>shift</b>", 1], [33, "play", 2], [34, "rec", 3], [35, "copy <b>clr</b>", 4],
-            [24, "voice", 5], [25, "perf", 6], [26, "load", 7], [27, "save", 8]], 5.83],
+  ["mode", [[32, "<b>SHIFT</b>", 1], [33, "PLAY", 2], [34, "REC", 3], [35, "COPY <b>CLR</b>", 4],
+            [24, "VOICE", 5], [25, "PERF", 6], [26, "LOAD", 7], [27, "SAVE", 8]], 5.83],
 ];
 const ledEl = {};
 for (const [x0, x1] of [[1, 4], [5, 8], [9, 16]]) {     // the bracket lines around the three groups
@@ -49,7 +49,7 @@ for (const [x0, x1] of [[1, 4], [5, 8], [9, 16]]) {     // the bracket lines aro
   Object.assign(g.style, { left: `calc(var(--u) * ${x0 - 0.45})`, width: `calc(var(--u) * ${x1 - x0 + 0.9})`,
                            top: "calc(var(--u) * 5.47)", height: "calc(var(--u) * .8)" });
 }
-at(add($("dev"), "span", "txt", "bar"), 8.5, 5.21);
+at(add($("dev"), "span", "txt", "BAR"), 8.5, 5.21);
 for (const [kind, btns, y] of PANEL) {
   const row = add($("panel"), "div", "row");
   for (const [n, label, x] of btns) {
@@ -76,7 +76,7 @@ function showLeds(bytes) {          // 5 shift register bytes + page down
 // six faders: adc_buf[8..13], read by adcPots.c adc_checkFaders as (raw>>4)/4096, squared,
 // as the volume of voices 1..6. the board starts them at 0xfff0 (fully up). (the panel's
 // seventh fader, master volume, is analog after the dac and not modelled.)
-["drum1", "drum2", "drum3", "snare", "clp/cym", "hihats"].forEach((name, k) => {
+["DRUM1", "DRUM2", "DRUM3", "SNARE", "CLP/CYM", "HIHATS"].forEach((name, k) => {
   const f = add($("faders"), "label", "fader", `${name}<input type="range" min="0" max="4095" value="4095">`);
   f.style.setProperty("--x", 10 + k);
   f.querySelector("input").oninput = (e) => send(`adc ${8 + k} ${(+e.target.value) << 4}`);
@@ -125,7 +125,7 @@ document.body.insertAdjacentHTML("beforeend", `<svg width="0" height="0" style="
   const e = at(add($("dev"), "div", "enc abs", `<svg viewBox="-50 -50 100 100">
     <g>${ticks(41, 45, 10, "#2c2c2c")}<circle r="42" fill="#181818"/>${ticks(41, 45, 7, "#181818")}${ticks(31, 36, 2.5, "#6a6a6a")}</g>
     <circle class="cap" r="24" fill="#222" stroke="#3a3a3a"/></svg>`), 8, 2.28);
-  at(add($("dev"), "span", "txt", "data"), 8, 3.3);
+  at(add($("dev"), "span", "txt", "DATA"), 8, 3.3);
   const g = e.querySelector("g"), cap = e.querySelector(".cap");
   let rot = 0, acc = 0, a0 = null, wacc = 0;
   const detent = (d) => { send(`encoder ${d}`); rot += 15 * d; g.setAttribute("transform", `rotate(${rot})`); };

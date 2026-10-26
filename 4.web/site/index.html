@@ -29,12 +29,12 @@
 
   .dev { position: relative; width: calc(var(--u) * 17); height: calc(var(--u) * 8); background: var(--panel);
          border-radius: calc(var(--u) * .12); box-shadow: inset 0 1px 0 #2a2a2a, 0 8px 30px #000a;
-         font-size: calc(var(--u) * .16); color: var(--dim); text-transform: lowercase; }
+         font-size: calc(var(--u) * .16); color: var(--dim); }
   .dev, .dev *, #pads, #pads * { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   #panel, #panel .row, #knobs, #faders { display: contents; }
   .abs { position: absolute; left: calc(var(--u) * var(--x)); top: calc(var(--u) * var(--y)); translate: -50% -50%; }
 
-  #lcd { text-transform: none; position: absolute; left: calc(var(--u) * 1.77); top: calc(var(--u) * 1.78); width: calc(var(--u) * 4.6); height: calc(var(--u) * 1.16);
+  #lcd { position: absolute; left: calc(var(--u) * 1.77); top: calc(var(--u) * 1.78); width: calc(var(--u) * 4.6); height: calc(var(--u) * 1.16);
          background: #050505; border: 1px solid #2c2c2c; border-radius: 3px; color: var(--lcd); text-shadow: 0 0 6px #ff3b2f88;
          font: calc(var(--u) * .41)/1.12 Menlo, Consolas, monospace; white-space: pre; padding: calc(var(--u) * .08) calc(var(--u) * .1); overflow: hidden; }
 
@@ -75,7 +75,7 @@
   .pb.mode span, .pb.sel span { background: var(--panel); padding: 0 .35em; position: relative; z-index: 1; }
   .txt { position: absolute; translate: -50% -50%; left: calc(var(--u) * var(--x)); top: calc(var(--u) * var(--y)); }
 
-  hr { border: 0; border-top: 1px solid #2a2a2a; margin: 22px 0 14px; }
+  hr { border: 0; border-top: 1px solid #2a2a2a; margin: 40px 0 32px; }
   .info, footer { color: var(--dim); font-size: 13px; line-height: 1.9; }
   #pads { display: inline; }
   kbd { display: inline-block; min-width: 1.4em; padding: 0 .35em; margin: 0 .15em; text-align: center; color: var(--fg);
@@ -88,13 +88,13 @@
   #intro p { margin: 0 0 14px; }
   #intro select, #intro button { display: block; margin-top: 10px; font: inherit; }
   #intro button, #intro select { cursor: pointer; }
+  #intro select { margin-top: 0; }
   #intro #msg { margin: 12px 0 0; }
 </style>
 </head>
 <body>
 <main>
   <dialog id="intro">
-    <p>LXR-02 <a href="https://github.com/erica-synths/lxr-desktop-app">firmware</a> ported to the web. Completely Alpha, desktop only for now. <a href="mailto:hi@greg.technology">Email me!</a></p>
     <select id="engine">
       <option value="exact">exact: identical to the hardware's processor</option>
       <option value="plain">plain: lighter build, tiny differences</option>
@@ -113,7 +113,7 @@
   </div>
   <hr>
   <p class="info"><span id="pads"></span><br>these keys play the seven drums (midi notes 36 to 42, channel 1).</p>
-  <footer><a href="https://github.com/gregsadetsky/lxr02-recomp">github.com/gregsadetsky/lxr02-recomp</a></footer>
+  <footer>LXR-02 <a href="https://github.com/erica-synths/lxr-desktop-app">firmware</a> ported to the web. Completely Alpha, desktop only for now. <a href="mailto:hi@greg.technology">Email me!</a><br><a href="https://github.com/gregsadetsky/lxr02-recomp">github.com/gregsadetsky/lxr02-recomp</a></footer>
   <div id="log"></div>
 </main>
 <script src="main.js"></script>
