@@ -89,12 +89,16 @@
   #intro select, #intro button { display: block; margin-top: 10px; font: inherit; }
   #intro button, #intro select { cursor: pointer; }
   #intro select { margin-top: 0; }
+  #intro p.sub { margin: 0 0 6px; color: var(--dim); }
   #intro #msg { margin: 12px 0 0; }
+  @media (pointer: coarse) { .info { display: none; } }   /* no keyboard on touch screens */
 </style>
 </head>
 <body>
 <main>
   <dialog id="intro">
+    <p>LXR-02 on the web. Alpha!</p>
+    <p class="sub">Pick your flavor:</p>
     <select id="engine">
       <option value="exact">exact: identical to the hardware's processor</option>
       <option value="plain">plain: lighter build, tiny differences</option>

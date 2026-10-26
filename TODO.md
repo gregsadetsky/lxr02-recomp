@@ -1,4 +1,3 @@
-- mobile: say "not yet, desktop only"
 - link to the repo at the bottom of the page
 - make the repo public
 - post on elektronauts

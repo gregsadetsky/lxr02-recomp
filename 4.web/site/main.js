@@ -74,13 +74,20 @@ function showLeds(bytes) {          // 5 shift register bytes + page down
 }
 
 // six faders: adc_buf[8..13], read by adcPots.c adc_checkFaders as (raw>>4)/4096, squared,
-// as the volume of voices 1..6. the board starts them at 0xfff0 (fully up). (the panel's
-// seventh fader, master volume, is analog after the dac and not modelled.)
+// as the volume of voices 1..6. the board starts them at 0xfff0 (fully up). the seventh,
+// master, is analog after the dacs on the device: here a gain after the firmware's output
+// (squared position; the real fader's taper is not known).
 ["DRUM1", "DRUM2", "DRUM3", "SNARE", "CLP/CYM", "HIHATS"].forEach((name, k) => {
   const f = add($("faders"), "label", "fader", `${name}<input type="range" min="0" max="4095" value="4095">`);
   f.style.setProperty("--x", 10 + k);
   f.querySelector("input").oninput = (e) => send(`adc ${8 + k} ${(+e.target.value) << 4}`);
 });
+let master = null;
+{
+  const f = add($("faders"), "label", "fader", `MASTER<input id="master" type="range" min="0" max="1000" value="1000">`);
+  f.style.setProperty("--x", 16);
+  $("master").oninput = (e) => { if (master) master.gain.value = (+e.target.value / 1000) ** 2; };
+}
 
 // knob drawing: 12 grip ticks that turn with the knob (endless, so no pointer line).
 const ticks = (r0, r1, w, col) => Array.from({ length: 12 }, (_, k) =>
@@ -166,7 +173,8 @@ $("start").onclick = async () => {
     const ctrl = new SharedArrayBuffer(16), data = new SharedArrayBuffer(CAP * 4);
     const inCtrl = new SharedArrayBuffer(8), inData = new SharedArrayBuffer(1 << 16);
     const node = new AudioWorkletNode(ctx, "ring", { outputChannelCount: [2], processorOptions: { ctrl, data } });
-    node.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = (+$("master").value / 1000) ** 2;
+    node.connect(master).connect(ctx.destination);
     const ic = new Int32Array(inCtrl), id = new Uint8Array(inData), enc = new TextEncoder();
     send = (line) => {
       const b = enc.encode(line + "\n"); let w = Atomics.load(ic, 0);
