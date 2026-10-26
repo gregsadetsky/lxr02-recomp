@@ -22,7 +22,7 @@ if [ "$TARGET" = wasm ]; then
   # arm-none-eabi abi defaults made explicit for wasm (measured in 1.dsp-wasm-poc)
   TFLAGS="-funsigned-char -fshort-enums"
 else
-  TC="$ROOT/tools/arm-gnu-toolchain-14.3.rel1-darwin-arm64-arm-none-eabi/bin"
+  TC="${ARM_TOOLCHAIN:-$ROOT/tools/arm-gnu-toolchain-14.3.rel1-darwin-arm64-arm-none-eabi/bin}"
   CC="$TC/arm-none-eabi-gcc"
   TFLAGS="-mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard -mfp16-format=ieee --specs=nano.specs"
 fi

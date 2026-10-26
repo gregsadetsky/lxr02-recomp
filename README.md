@@ -12,3 +12,21 @@ instruction to wasm. output is bit identical to the same build on qemu's cortex-
 run: `uv run gunicorn app:app`
 
 gpl-3.0
+
+## build
+
+needs the arm gnu toolchain 14.3.rel1 (`ARM_TOOLCHAIN=<its bin dir>`), cmake, ninja,
+emscripten, uv, mtools, qemu (tests). the blank card is made with macos `hdiutil`.
+
+```
+git clone --recursive https://github.com/gregsadetsky/lxr02-recomp && cd lxr02-recomp
+cmake -S upstream/lxr-desktop-app -B build-fw/release -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DARM_TOOLCHAIN_DIR=$ARM_TOOLCHAIN
+cmake --build build-fw/release              # erica's build: the source list and per file flags
+2.engine/tools/mkcard.sh 2.engine/cards/blank-fat32-64m.img
+2.engine/tools/mkcard-kit.sh 2.engine/cards/blank-fat32-64m.img 2.engine/cards/src/04-zippe.snd 2.engine/cards/kit-zippe.img
+2.engine/build.sh arm && 4.web/build.sh     # -> 4.web/site
+```
+
+tests: `3.recomp/test/build.sh` (fp instructions, qemu vs translation), and per scenario
+`cd 2.engine && ./run.sh qemu kit-zippe && ./run.sh recompw kit-zippe && ./compare.sh kit-zippe qemu recompw`
