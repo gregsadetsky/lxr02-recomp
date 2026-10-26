@@ -66,23 +66,32 @@
   .pb.mode span, .pb.sel span { background: var(--panel); padding: 0 .35em; position: relative; z-index: 1; }
   .txt { position: absolute; translate: -50% -50%; left: calc(var(--u) * var(--x)); top: calc(var(--u) * var(--y)); }
 
-  #pads { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-  #pads button { touch-action: none; padding: 6px 10px; }
-  #pads button small { color: var(--dim); margin-left: 4px; }
+  #pads { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  #pads button { touch-action: none; padding: 8px 14px 10px; min-width: 64px; text-align: center; user-select: none; -webkit-user-select: none; }
+  #pads button b { display: block; font-size: 22px; line-height: 1.1; color: var(--fg); }
+  #pads button small { color: var(--dim); font-size: 11px; }
+  #pads button.hit { background: #444; }
+  .foot { color: var(--dim); font-size: 12px; margin-top: 14px; }
+  #intro { background: #1b1b1b; color: var(--fg); border: 1px solid #444; border-radius: 8px; padding: 22px 24px; }
+  #intro::backdrop { background: #000a; }
+  #intro p { margin: 0 0 14px; }
+  #intro select, #intro button { display: block; margin-top: 10px; font: inherit; }
+  #intro #msg { margin: 12px 0 0; }
 </style>
 </head>
 <body>
 <main>
-  <div class="bar">
+  <dialog id="intro">
+    <p>lxr-02 firmware, running in your browser</p>
     <select id="engine">
-      <option value="exact">bit exact (gcc machine code, translated)</option>
-      <option value="plain">plain wasm (clang, 29 dB off)</option>
+      <option value="exact">exact: identical to the hardware's processor</option>
+      <option value="plain">plain: lighter build, tiny differences</option>
     </select>
+    <div id="msg"></div>
     <button id="start">start</button>
-    <button id="midi">midi in</button>
+    <!-- <button id="midi">midi in</button>  (todo) -->
     <span id="status"></span>
-  </div>
-  <div id="msg"></div>
+  </dialog>
   <div class="dev" id="dev">
     <div id="lcd">
                 </div>
@@ -91,6 +100,7 @@
     <div id="panel"></div>
   </div>
   <div id="pads"></div>
+  <p class="foot">keys s d f g h j k play the seven drums (midi notes 36 to 42, channel 1)</p>
   <div id="log"></div>
 </main>
 <script src="main.js"></script>

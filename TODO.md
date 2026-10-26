@@ -3,3 +3,4 @@
 - make the repo public
 - post on elektronauts
 - more than one kit: ship most of the kits from github.com/gregsadetsky/lxr02-editor
+- midi in (button commented out in index.html / main.js)

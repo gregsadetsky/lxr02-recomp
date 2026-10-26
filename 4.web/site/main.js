@@ -12,13 +12,20 @@ const add = (parent, tag, cls, html = "") => { const e = document.createElement(
 // localhost) and AudioWorklet.
 const supported = window.isSecureContext && window.crossOriginIsolated &&
   typeof SharedArrayBuffer !== "undefined" && typeof AudioWorkletNode !== "undefined";
-if (!supported) { $("msg").textContent = "needs a desktop browser over https or localhost"; $("start").disabled = true; }
+if (!supported) { $("msg").textContent = "desktop browser only for now"; $("start").hidden = true; $("engine").hidden = true; }
 
+const pad = {};
 for (const [name, key, note] of VOICES) {
-  const b = add($("pads"), "button", "", `${name}<small>${key}</small>`);
-  b.title = `midi note ${note} on channel 1`;
-  b.onpointerdown = () => send(`midi 90 ${note.toString(16)} 7f`);
+  const b = pad[key] = add($("pads"), "button", "", `<b>${key}</b><small>${name}</small>`);
+  b.onpointerdown = () => play(key);
 }
+function play(key) {                  // a note on channel 1; the card's settings map 36..42 to the voices
+  const v = VOICES.find((x) => x[1] === key);
+  send(`midi 90 ${v[2].toString(16)} 7f`);
+  pad[key].classList.add("hit"); setTimeout(() => pad[key].classList.remove("hit"), 120);
+}
+$("intro").showModal();
+$("intro").addEventListener("cancel", (e) => e.preventDefault());   // esc does not skip it
 
 // front panel buttons and their leds: same numbering in the firmware (buttonHandler.h
 // ButtonNumbers, ledHandler.h LedNumbers): shift register bit i*8+b, 40 = page down.
@@ -151,6 +158,7 @@ document.body.insertAdjacentHTML("beforeend", `<svg width="0" height="0" style="
 $("start").onclick = async () => {
   $("start").disabled = true;
   if (!supported) return;
+  $("intro").close();
   try {
     const ctx = new AudioContext({ sampleRate: 44100 });   // device: 44140.625 hz, 0.09% slow
     await ctx.audioWorklet.addModule("audio.js");
@@ -196,10 +204,12 @@ $("start").onclick = async () => {
     }, 500);
   } catch (e) {
     $("msg").textContent = "could not start audio here: " + e.message;
+    if (!$("intro").open) $("intro").showModal();
     log(e);
   }
 };
 
+/* midi in (todo):
 $("midi").onclick = async () => {        // asked only on this click
   if (!navigator.requestMIDIAccess) { log("this browser has no web midi"); return; }
   try {
@@ -211,11 +221,11 @@ $("midi").onclick = async () => {        // asked only on this click
     $("midi").disabled = true;
   } catch (e) { log("no web midi: " + e); }
 };
+*/
 
 document.addEventListener("keydown", (e) => {
   if (e.repeat) return;
-  const v = VOICES.find((x) => x[1] === e.key);
-  if (v) send(`midi 90 ${v[2].toString(16)} 7f`);
+  if (pad[e.key]) play(e.key);
   if (e.key === "ArrowLeft") send("encoder -1");
   if (e.key === "ArrowRight") send("encoder 1");
   if (e.key === "Enter") send("encbutton 1");
