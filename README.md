@@ -1,6 +1,6 @@
 # lxr02-recomp
 
-the erica synths / sonic potions lxr-02 firmware in the browser. erica's open source code
+the erica synths / sonic potions LXR-02 firmware in the browser. alpha. erica's open source code
 (unmodified, her compiler flags) built for cortex-m7, then translated instruction by
 instruction to wasm. output is bit identical to the same build on qemu's cortex-m7.
 

@@ -3,7 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LXR-02</title>
+<title>LXR-02 in the browser (alpha)</title>
+<meta name="description" content="The LXR-02 drum machine's firmware running in your browser, sample for sample. Alpha.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lxr02-recomp.greg.technology/">
+<meta property="og:title" content="LXR-02 in the browser (alpha)">
+<meta property="og:description" content="The LXR-02 drum machine's firmware running in your browser, sample for sample. Alpha.">
+<meta property="og:image" content="https://lxr02-recomp.greg.technology/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <style>
   /* the panel is laid out on the device's own grid: 16 button columns, unit --u = one
      column pitch. positions (--x, --y) are centres in --u, measured from a top view photo. */
@@ -76,13 +85,14 @@
   #intro::backdrop { background: #000a; }
   #intro p { margin: 0 0 14px; }
   #intro select, #intro button { display: block; margin-top: 10px; font: inherit; }
+  #intro button, #intro select, #pads button { cursor: pointer; }
   #intro #msg { margin: 12px 0 0; }
 </style>
 </head>
 <body>
 <main>
   <dialog id="intro">
-    <p>lxr-02 firmware, running in your browser</p>
+    <p>LXR-02 firmware, running in your browser. alpha.</p>
     <select id="engine">
       <option value="exact">exact: identical to the hardware's processor</option>
       <option value="plain">plain: lighter build, tiny differences</option>
