@@ -1,0 +1,6 @@
+# live mode with a plain file: board polls live.in once per dma round. run.sh copies
+# scenario/live-file.in to live.in. everything in it applies at the first poll, so it
+# only checks the plumbing; timing tests use timed scenarios.
+card cards/kit-zippe.img
+live
+seed c0ffee

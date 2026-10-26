@@ -1,0 +1,5 @@
+- mobile: say "not yet, desktop only"
+- link to the repo at the bottom of the page
+- make the repo public
+- post on elektronauts
+- more than one kit: ship most of the kits from github.com/gregsadetsky/lxr02-editor

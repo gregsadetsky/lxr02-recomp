@@ -1,0 +1,4 @@
+# live mode fed with kit-zippe events as timed lines: must equal kit-zippe
+card cards/kit-zippe.img
+live
+seed c0ffee

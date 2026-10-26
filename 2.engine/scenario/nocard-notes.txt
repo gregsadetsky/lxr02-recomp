@@ -1,0 +1,10 @@
+# no sd card: built in init kit, every voice answers note 48 (0x30) on channel 1
+seed c0ffee
+4000 midi 90 30 7f
+4500 midi 90 30 64
+5000 midi 90 30 40
+5250 midi 90 30 7f
+5375 midi 90 30 5a
+5500 midi 90 24 7f
+6000 midi 90 30 7f
+8000 end

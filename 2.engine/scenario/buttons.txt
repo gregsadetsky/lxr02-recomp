@@ -1,0 +1,16 @@
+# front panel buttons (numbers from buttonHandler.h ButtonNumbers): voice 2, page down,
+# step 1 toggled, start/stop, then a note
+card cards/kit-zippe.img
+seed c0ffee
+5000 button 2 1
+5100 button 2 0
+5600 button 40 1
+5700 button 40 0
+6200 button 39 1
+6300 button 39 0
+6800 button 33 1
+6900 button 33 0
+9800 button 33 1
+9900 button 33 0
+10200 midi 90 25 7f
+11500 end

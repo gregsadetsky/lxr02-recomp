@@ -1,0 +1,4 @@
+# the browser page with no input: same card, no events
+card cards/kit-zippe.img
+seed c0ffee
+6000 end

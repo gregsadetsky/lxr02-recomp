@@ -1,0 +1,19 @@
+# blank fat32 card, notes on channel 1 (voices have volume 0 on a blank card)
+card cards/blank-fat32-64m.img
+seed c0ffee
+4000 midi 90 24 7f
+4250 midi 90 26 6e
+4500 midi 90 2a 64
+4625 midi 90 2a 64
+4750 midi 90 2e 64
+5000 midi 90 24 7f
+5000 midi 90 28 78
+5250 midi 90 31 7f
+5500 midi 90 2d 64
+5750 midi 90 2f 64
+6000 midi 90 24 7f
+6000 midi 90 26 7f
+6000 midi 90 3c 7f
+6250 midi 90 40 64
+6500 midi 90 43 5a
+8000 end

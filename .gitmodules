@@ -1,0 +1,3 @@
+[submodule "upstream/lxr-desktop-app"]
+	path = upstream/lxr-desktop-app
+	url = https://github.com/erica-synths/lxr-desktop-app

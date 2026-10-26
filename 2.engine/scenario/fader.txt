@@ -1,0 +1,9 @@
+# fader 1 (adc 8): hit at full, then fader down to 0 and to 1/4, hit after each
+card cards/kit-zippe.img
+seed c0ffee
+5000 midi 90 24 7f
+6000 adc 8 0
+6500 midi 90 24 7f
+7500 adc 8 16000
+8000 midi 90 24 7f
+9000 end

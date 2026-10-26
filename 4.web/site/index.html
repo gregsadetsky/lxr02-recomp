@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LXR-02</title>
+<style>
+  /* the panel is laid out on the device's own grid: 16 button columns, unit --u = one
+     column pitch. positions (--x, --y) are centres in --u, measured from a top view photo. */
+  :root { --bg: #0e0e0e; --panel: #1b1b1b; --fg: #d8d8d8; --dim: #9a9a9a; --lcd: #ff3b2f;
+          --u: min(68px, calc((100vw - 32px) / 17)); }
+  * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body { background: var(--bg); color: var(--fg); font: 13px/1.4 "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px 16px; }
+  main { width: calc(var(--u) * 17); max-width: 100%; margin: 0 auto; }
+  button, select { background: #262626; color: var(--fg); border: 1px solid #3a3a3a; border-radius: 4px; padding: 6px 10px; font: inherit; max-width: 100%; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+  #msg { color: #ff8a7a; margin: 0 0 12px; }
+  #msg:empty, #status, #log { display: none; }
+
+  .dev { position: relative; width: calc(var(--u) * 17); height: calc(var(--u) * 8); background: var(--panel);
+         border-radius: calc(var(--u) * .12); box-shadow: inset 0 1px 0 #2a2a2a, 0 8px 30px #000a;
+         font-size: calc(var(--u) * .16); color: var(--dim); text-transform: lowercase; }
+  .dev, .dev *, #pads, #pads * { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  #panel, #panel .row, #knobs, #faders { display: contents; }
+  .abs { position: absolute; left: calc(var(--u) * var(--x)); top: calc(var(--u) * var(--y)); translate: -50% -50%; }
+
+  #lcd { text-transform: none; position: absolute; left: calc(var(--u) * 1.77); top: calc(var(--u) * 1.78); width: calc(var(--u) * 4.6); height: calc(var(--u) * 1.16);
+         background: #050505; border: 1px solid #2c2c2c; border-radius: 3px; color: var(--lcd); text-shadow: 0 0 6px #ff3b2f88;
+         font: calc(var(--u) * .41)/1.12 Menlo, Consolas, monospace; white-space: pre; padding: calc(var(--u) * .08) calc(var(--u) * .1); overflow: hidden; }
+
+  .knob, .enc { touch-action: none; cursor: ns-resize; }
+  .knob svg, .enc svg { display: block; width: 100%; height: 100%; }
+  .knob { width: calc(var(--u) * 1.05); height: calc(var(--u) * 1.05); }
+  .enc { width: calc(var(--u) * 1.6); height: calc(var(--u) * 1.6); cursor: grab; }
+  .enc .cap { cursor: pointer; }
+  .enc .cap.down { fill: #0c0c0c; }
+  .enc-lbl { --y: 3.3; }
+
+  .fader { position: absolute; left: calc(var(--u) * var(--x)); top: calc(var(--u) * .62); width: var(--u); height: calc(var(--u) * 3.6);
+           translate: -50% 0; text-align: center; }
+  .fader input { position: absolute; left: 50%; top: calc(var(--u) * 2.0); width: calc(var(--u) * 3.0); height: calc(var(--u) * .62); margin: 0;
+                 translate: -50% -50%; rotate: -90deg; appearance: none; -webkit-appearance: none; background: transparent; touch-action: none; cursor: grab; }
+  .fader input::-webkit-slider-runnable-track { height: 100%; background: linear-gradient(#000 0 0) center / 92% 12% no-repeat, #0a0a0a; border: 1px solid #333; border-radius: 3px; }
+  .fader input::-moz-range-track { height: 100%; background: #0a0a0a; border: 1px solid #333; border-radius: 3px; }
+  .fader input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: calc(var(--u) * .46); height: calc(var(--u) * .62);
+    background: linear-gradient(90deg, #2b2b2b 0 44%, #eee 44% 56%, #2b2b2b 56%); border: 1px solid #555; border-radius: 3px; }
+  .fader input::-moz-range-thumb { width: calc(var(--u) * .46); height: calc(var(--u) * .62);
+    background: linear-gradient(90deg, #2b2b2b 0 44%, #eee 44% 56%, #2b2b2b 56%); border: 1px solid #555; border-radius: 3px; }
+
+  .pb { position: absolute; left: calc(var(--u) * var(--x)); top: calc(var(--u) * var(--y) - var(--cap) / 2); --cap: calc(var(--u) * .46);
+        width: var(--u); translate: -50% 0; padding: 0; border: 0; background: none; color: var(--dim); font-size: inherit;
+        display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * .1); touch-action: none; cursor: pointer; white-space: nowrap; }
+  .pb i { display: block; width: var(--cap); height: var(--cap); border-radius: 50%; background: radial-gradient(circle at 40% 35%, #8c8c8c, #4b4b4b 72%);
+          box-shadow: 0 2px 3px #000c; }
+  .pb i.on { background: radial-gradient(circle at 40% 35%, #ffd6d0, #ff3a2a 45%, #a01a10); box-shadow: 0 0 calc(var(--u) * .22) #ff3a2acc; }
+  .pb:active i { filter: brightness(.75); }
+  .pb b { font-weight: normal; background: #d8d8d8; color: #111; padding: 0 .3em; border-radius: 1px; }
+  .pb.step { --cap: calc(var(--u) * .86); }
+  .pb.step .bz { display: grid; place-items: center; width: var(--cap); height: var(--cap); background: #121212; border: 1px solid #444; border-radius: calc(var(--u) * .06); }
+  .pb.step.beat .bz { background: #cfcfcf; border-color: #eee; }
+  .pb.step i { width: calc(var(--u) * .66); height: calc(var(--u) * .66); background: radial-gradient(circle at 40% 30%, #9a9a9a, #565656 70%, #3a3a3a); }
+  .pb.step i.on { background: radial-gradient(circle at 40% 30%, #ffe0e6, #ff4f78 45%, #b01a40); box-shadow: 0 0 calc(var(--u) * .3) #ff4f78cc; }
+  .grp { position: absolute; border: 1px solid #555; border-radius: 3px 3px 0 0; border-bottom: 0; }
+  .grp::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; border-bottom: 1px solid #555; }
+  .pb.mode span, .pb.sel span { background: var(--panel); padding: 0 .35em; position: relative; z-index: 1; }
+  .txt { position: absolute; translate: -50% -50%; left: calc(var(--u) * var(--x)); top: calc(var(--u) * var(--y)); }
+
+  #pads { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  #pads button { touch-action: none; padding: 6px 10px; }
+  #pads button small { color: var(--dim); margin-left: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="bar">
+    <select id="engine">
+      <option value="exact">bit exact (gcc machine code, translated)</option>
+      <option value="plain">plain wasm (clang, 29 dB off)</option>
+    </select>
+    <button id="start">start</button>
+    <button id="midi">midi in</button>
+    <span id="status"></span>
+  </div>
+  <div id="msg"></div>
+  <div class="dev" id="dev">
+    <div id="lcd">
+                </div>
+    <div id="knobs"></div>
+    <div id="faders"></div>
+    <div id="panel"></div>
+  </div>
+  <div id="pads"></div>
+  <div id="log"></div>
+</main>
+<script src="main.js"></script>
+</body>
+</html>
