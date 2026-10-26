@@ -10,6 +10,7 @@ emcc $CF -w -fbracket-depth=1024 -c "$OUT/fw.c" -o "$OUT/fw.wasm.o"
 emcc $CF -w -c "$OUT/image.c" -o "$OUT/image.wasm.o"
 emcc $CF -Wall -c "$HERE/rt/rt.c" -o "$OUT/rt.wasm.o"
 emcc $CF -Wall -c "$HERE/rt/fp.c" -o "$OUT/fp.wasm.o"
-emcc "$OUT/fw.wasm.o" "$OUT/image.wasm.o" "$OUT/rt.wasm.o" "$OUT/fp.wasm.o" -o "$OUT/lxr.js" \
+emcc $CF -Wall -c "$HERE/rt/fz.c" -o "$OUT/fz.wasm.o"
+emcc "$OUT/fw.wasm.o" "$OUT/image.wasm.o" "$OUT/rt.wasm.o" "$OUT/fp.wasm.o" "$OUT/fz.wasm.o" -o "$OUT/lxr.js" \
   -sNODERAWFS=1 -sEXIT_RUNTIME=1 -sINITIAL_MEMORY=64MB -sSTACK_SIZE=4MB
 echo "$OUT/lxr.js"

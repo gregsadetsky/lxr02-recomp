@@ -97,6 +97,7 @@ static inline uint32_t b32(float f) { uint32_t b; memcpy(&b, &f, 4); return b; }
 static inline double f64(uint64_t b) { double f; memcpy(&f, &b, 8); return f; }
 static inline uint64_t b64(double f) { uint64_t b; memcpy(&b, &f, 8); return b; }
 
+static inline double fabs_d(double x) { uint64_t b; memcpy(&b, &x, 8); b &= 0x7fffffffffffffffull; memcpy(&x, &b, 8); return x; }
 static inline int isnan32(uint32_t b) { return (b & 0x7fffffffu) > 0x7f800000u; }
 static inline int issnan32(uint32_t b) { return isnan32(b) && !(b & 0x00400000u); }
 static inline int isnan64(uint64_t b) { return (b & 0x7fffffffffffffffull) > 0x7ff0000000000000ull; }
@@ -166,6 +167,7 @@ static inline uint64_t fabs64(uint64_t a) { return a & 0x7fffffffffffffffull; }
  * (boldo & melquiond: round to odd at p+2 bits, then nearest at p). */
 uint32_t fma32_exact(uint32_t a, uint32_t b, uint32_t c);   /* a*b + c */
 uint64_t fma64_exact(uint64_t a, uint64_t b, uint64_t c);   /* a*b + c */
+uint64_t fma64_exact_t(uint64_t a, uint64_t b, uint64_t c, int *tiny);
 /* FPMulAdd(addend, op1, op2): nan order addend, op1, op2; inf*0 (+ anything) = default nan */
 static inline uint32_t fmuladd32(uint32_t addend, uint32_t x, uint32_t y)
 {
@@ -174,6 +176,15 @@ static inline uint32_t fmuladd32(uint32_t addend, uint32_t x, uint32_t y)
     if (nans3_32(addend, x, y, &r)) { if (inf0 && !issnan32(addend) && isnan32(addend)) return DEFNAN32; return r; }
     r = fma32_exact(x, y, addend);
     return isnan32(r) ? DEFNAN32 : r;
+}
+static inline uint64_t fmuladd64_t(uint64_t addend, uint64_t x, uint64_t y, int *tiny)
+{
+    uint64_t r;
+    *tiny = 0;
+    int inf0 = ((x & 0x7fffffffffffffffull) == 0x7ff0000000000000ull && (y & 0x7fffffffffffffffull) == 0) || ((y & 0x7fffffffffffffffull) == 0x7ff0000000000000ull && (x & 0x7fffffffffffffffull) == 0);
+    if (nans3_64(addend, x, y, &r)) { if (inf0 && !issnan64(addend) && isnan64(addend)) return DEFNAN64; return r; }
+    r = fma64_exact_t(x, y, addend, tiny);
+    return isnan64(r) ? DEFNAN64 : r;
 }
 static inline uint64_t fmuladd64(uint64_t addend, uint64_t x, uint64_t y)
 {
@@ -231,5 +242,44 @@ static inline uint32_t cvt_f32_f64(uint64_t a)
 { if (isnan64(a)) return ((uint32_t)(a >> 63) << 31) | 0x7fc00000u | (uint32_t)((a >> 29) & 0x003fffffu); return b32((float)f64(a)); }
 uint32_t cvt_f32_f16(uint32_t h);   /* bottom 16 bits in */
 uint32_t cvt_f16_f32(uint32_t a);   /* 16 bits out, nearest even, ahp = 0 */
+
+/* ------------------------------------------------- FPSCR.FZ dispatch (fz.c) */
+#define FZ_ON (__builtin_expect((FPSCR >> 24) & 1u, 0))
+void rt_fz_mode_check(void);
+uint32_t fz_add32(uint32_t, uint32_t, int); uint32_t fz_mul32(uint32_t, uint32_t); uint32_t fz_div32(uint32_t, uint32_t);
+uint32_t fz_sqrt32(uint32_t); uint32_t fz_fmuladd32(uint32_t, uint32_t, uint32_t); uint32_t fz_cmp32(uint32_t, uint32_t);
+uint32_t fz_maxnm32(uint32_t, uint32_t); uint32_t fz_minnm32(uint32_t, uint32_t); uint32_t fz_rintz32(uint32_t);
+uint32_t fz_cvt_s32_f32(uint32_t); uint32_t fz_cvt_u32_f32(uint32_t); uint32_t fz_cvt_s32_f32_fix(uint32_t, int);
+uint64_t fz_cvt_f64_f32(uint32_t); uint32_t fz_cvt_f16_f32(uint32_t);
+uint64_t fz_add64(uint64_t, uint64_t, int); uint64_t fz_mul64(uint64_t, uint64_t); uint64_t fz_div64(uint64_t, uint64_t);
+uint64_t fz_fmuladd64(uint64_t, uint64_t, uint64_t); uint32_t fz_cmp64(uint64_t, uint64_t);
+uint64_t fz_maxnm64(uint64_t, uint64_t); uint64_t fz_minnm64(uint64_t, uint64_t); uint64_t fz_rintz64(uint64_t);
+uint32_t fz_cvt_s32_f64(uint64_t); uint32_t fz_cvt_f32_f64(uint64_t);
+static inline uint32_t xadd32(uint32_t a, uint32_t b) { return FZ_ON ? fz_add32(a, b, 0) : fadd32(a, b); }
+static inline uint32_t xsub32(uint32_t a, uint32_t b) { return FZ_ON ? fz_add32(a, b, 1) : fsub32(a, b); }
+static inline uint32_t xmul32(uint32_t a, uint32_t b) { return FZ_ON ? fz_mul32(a, b) : fmul32(a, b); }
+static inline uint32_t xdiv32(uint32_t a, uint32_t b) { return FZ_ON ? fz_div32(a, b) : fdiv32(a, b); }
+static inline uint32_t xsqrt32(uint32_t a) { return FZ_ON ? fz_sqrt32(a) : fsqrt32(a); }
+static inline uint32_t xmuladd32(uint32_t d, uint32_t x, uint32_t y) { return FZ_ON ? fz_fmuladd32(d, x, y) : fmuladd32(d, x, y); }
+static inline uint32_t xcmp32(uint32_t a, uint32_t b) { return FZ_ON ? fz_cmp32(a, b) : fcmp32(a, b); }
+static inline uint32_t xmaxnm32(uint32_t a, uint32_t b) { return FZ_ON ? fz_maxnm32(a, b) : fmaxnm32(a, b); }
+static inline uint32_t xminnm32(uint32_t a, uint32_t b) { return FZ_ON ? fz_minnm32(a, b) : fminnm32(a, b); }
+static inline uint32_t xrintz32(uint32_t a) { return FZ_ON ? fz_rintz32(a) : frintz32(a); }
+static inline uint32_t xcvt_s32_f32(uint32_t a) { return FZ_ON ? fz_cvt_s32_f32(a) : cvt_s32_f32(a); }
+static inline uint32_t xcvt_u32_f32(uint32_t a) { return FZ_ON ? fz_cvt_u32_f32(a) : cvt_u32_f32(a); }
+static inline uint32_t xcvt_s32_f32_fix(uint32_t a, int fb) { return FZ_ON ? fz_cvt_s32_f32_fix(a, fb) : cvt_s32_f32_fix(a, fb); }
+static inline uint64_t xcvt_f64_f32(uint32_t a) { return FZ_ON ? fz_cvt_f64_f32(a) : cvt_f64_f32(a); }
+static inline uint32_t xcvt_f16_f32(uint32_t a) { return FZ_ON ? fz_cvt_f16_f32(a) : cvt_f16_f32(a); }
+static inline uint64_t xadd64(uint64_t a, uint64_t b) { return FZ_ON ? fz_add64(a, b, 0) : fadd64(a, b); }
+static inline uint64_t xsub64(uint64_t a, uint64_t b) { return FZ_ON ? fz_add64(a, b, 1) : fsub64(a, b); }
+static inline uint64_t xmul64(uint64_t a, uint64_t b) { return FZ_ON ? fz_mul64(a, b) : fmul64(a, b); }
+static inline uint64_t xdiv64(uint64_t a, uint64_t b) { return FZ_ON ? fz_div64(a, b) : fdiv64(a, b); }
+static inline uint64_t xmuladd64(uint64_t d, uint64_t x, uint64_t y) { return FZ_ON ? fz_fmuladd64(d, x, y) : fmuladd64(d, x, y); }
+static inline uint32_t xcmp64(uint64_t a, uint64_t b) { return FZ_ON ? fz_cmp64(a, b) : fcmp64(a, b); }
+static inline uint64_t xmaxnm64(uint64_t a, uint64_t b) { return FZ_ON ? fz_maxnm64(a, b) : fmaxnm64(a, b); }
+static inline uint64_t xminnm64(uint64_t a, uint64_t b) { return FZ_ON ? fz_minnm64(a, b) : fminnm64(a, b); }
+static inline uint64_t xrintz64(uint64_t a) { return FZ_ON ? fz_rintz64(a) : frintz64(a); }
+static inline uint32_t xcvt_s32_f64(uint64_t a) { return FZ_ON ? fz_cvt_s32_f64(a) : cvt_s32_f64(a); }
+static inline uint32_t xcvt_f32_f64(uint64_t a) { return FZ_ON ? fz_cvt_f32_f64(a) : cvt_f32_f64(a); }
 
 #endif

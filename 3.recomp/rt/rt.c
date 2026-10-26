@@ -57,6 +57,11 @@ static uint32_t *sys_slot(uint32_t a, int create)
     sys_addr[sys_n] = a; sys_val[sys_n] = 0;
     return &sys_val[sys_n++];
 }
+/* registers whose value differs from plain storage in qemu's cortex-m7 (read off qemu with
+ * gdb): CCR resets to 0x200 (STKALIGN), and its cache enable bits IC, DC, BP read as zero
+ * (qemu models no caches), so the firmware reads back what qemu returns. */
+#define SCB_CCR 0xe000ed14u
+static void sys_init(void) { *sys_slot(SCB_CCR, 1) = 0x200u; }
 uint32_t rt_sys_rd(uint32_t a, int n)
 {
     if ((a >> 28) != 0xe) rt_fatal("read of unmapped address", a);
@@ -75,6 +80,7 @@ void rt_sys_wr(uint32_t a, uint32_t v, int n)
     uint32_t *s = sys_slot(a & ~3u, 1);
     if (n == 4) *s = v;
     else { uint32_t sh = 8 * (a & 3), m = (n == 2 ? 0xffffu : 0xffu) << sh; *s = (*s & ~m) | ((v << sh) & m); }
+    if ((a & ~3u) == SCB_CCR) *s &= ~0x00070000u;
 }
 
 /* ------------------------------------------------------------ web host
@@ -86,7 +92,8 @@ void rt_sys_wr(uint32_t a, uint32_t v, int n)
 EM_JS(void, js_write, (int kind, const uint8_t *p, uint32_t n), { Module.hostWrite(kind, p, n); });
 EM_JS(uint32_t, js_read, (int kind, uint8_t *p, uint32_t n), { return Module.hostRead(kind, p, n); });
 static const char *web_names[] = { "dac1.raw", "dac2.raw", "lcd.txt", "midiout.txt", "live.in", "params.txt" };
-#define WEB_H0 32
+static char web_tag[6];                               /* fh[h] marker for each web file */
+#define WEBK(h) ((h) < 64 && fh[h] >= (FILE *)(void *)web_tag && fh[h] < (FILE *)(void *)(web_tag + 6) ? (int)((char *)(void *)fh[h] - web_tag) : -1)
 #endif
 
 /* ------------------------------------------------------------- semihosting */
@@ -96,6 +103,8 @@ static int sh_errno;
 static char cmdline[] = "lxr.elf";                  /* qemu: the -kernel path (run.sh uses lxr.elf) */
 static const char features[] = { 'S', 'H', 'F', 'B', 0x3 };   /* exit_extended | stdout_stderr */
 static unsigned feat_pos[64];
+static char features_tag;                          /* marks the features handle (FILE is opaque in musl) */
+#define FEATURES ((FILE *)(void *)&features_tag)
 
 static void cstr(uint32_t a, uint32_t len, char *out, size_t cap)
 {
@@ -103,7 +112,18 @@ static void cstr(uint32_t a, uint32_t len, char *out, size_t cap)
     for (uint32_t k = 0; k < len; k++) out[k] = (char)ld8(a + k);
     out[len] = 0;
 }
+static uint32_t rt_semihost_(uint32_t op, uint32_t arg);
 uint32_t rt_semihost(uint32_t op, uint32_t arg)
+{   /* RECOMP_TRACE_SEMI=n: log the first n calls (op, arg block, result) to stderr */
+    static long left = -2;
+    if (left == -2) left = getenv("RECOMP_TRACE_SEMI") ? atol(getenv("RECOMP_TRACE_SEMI")) : 0;
+    uint32_t a0 = 0, a1 = 0, a2 = 0;
+    if (left > 0 && arg <= MEMSZ - 12) { a0 = ld32(arg); a1 = ld32(arg + 4); a2 = ld32(arg + 8); }
+    uint32_t r = rt_semihost_(op, arg);
+    if (left > 0) { left--; fprintf(stderr, "semi op %02x arg %08x [%08x %08x %08x] -> %08x\n", op, arg, a0, a1, a2, r); }
+    return r;
+}
+static uint32_t rt_semihost_(uint32_t op, uint32_t arg)
 {
     switch (op) {
     case 0x01: {                                   /* SYS_OPEN */
@@ -111,13 +131,14 @@ uint32_t rt_semihost(uint32_t op, uint32_t arg)
         cstr(ld32(arg), ld32(arg + 8), name, sizeof name);
         uint32_t mode = ld32(arg + 4);
         static const char *modes[] = { "r", "rb", "r+", "r+b", "w", "wb", "w+", "w+b", "a", "ab", "a+", "a+b" };
-        int h; for (h = 3; h < 64 && fh[h]; h++) {}
+        /* qemu: the lowest free handle from 1, the features file is an ordinary handle */
+        int h; for (h = 1; h < 64 && fh[h]; h++) {}
         if (h == 64) return (uint32_t)-1;
         if (!strcmp(name, ":tt")) { fh[h] = mode < 4 ? stdin : mode < 8 ? stdout : stderr; return (uint32_t)h; }
-        if (!strcmp(name, ":semihosting-features")) { fh[h] = (FILE *)1; feat_pos[h] = 0; return (uint32_t)h | 0x100u; }
+        if (!strcmp(name, ":semihosting-features")) { fh[h] = FEATURES; feat_pos[h] = 0; return (uint32_t)h; }
 #ifdef RT_WEB
         for (int k = 0; k < (int)(sizeof web_names / sizeof web_names[0]); k++)
-            if (!strcmp(name, web_names[k])) return (uint32_t)(WEB_H0 + k);
+            if (!strcmp(name, web_names[k])) { fh[h] = (FILE *)(void *)(web_tag + k); return (uint32_t)h; }   /* same handle numbers as qemu */
 #endif
         if (rename_from && !strncmp(name, rename_from, strlen(rename_from)))
             snprintf(path, sizeof path, "%s%s", rename_to, name + strlen(rename_from));
@@ -129,9 +150,9 @@ uint32_t rt_semihost(uint32_t op, uint32_t arg)
     }
     case 0x02: {                                   /* SYS_CLOSE */
         uint32_t h = ld32(arg);
-        if (h & 0x100u) { h &= 0xff; fh[h] = 0; return 0; }
+        if (h < 64 && fh[h] == FEATURES) { fh[h] = 0; return 0; }
 #ifdef RT_WEB
-        if (h >= WEB_H0 && h < WEB_H0 + 6) return 0;
+        if (WEBK(h) >= 0) return 0;
 #endif
         if (h >= 64 || !fh[h]) return (uint32_t)-1;
         if (fh[h] != stdin && fh[h] != stdout && fh[h] != stderr) fclose(fh[h]);
@@ -142,7 +163,7 @@ uint32_t rt_semihost(uint32_t op, uint32_t arg)
     case 0x05: {                                   /* SYS_WRITE: returns bytes not written */
         uint32_t h = ld32(arg), p = ld32(arg + 4), n = ld32(arg + 8);
 #ifdef RT_WEB
-        if (h >= WEB_H0 && h < WEB_H0 + 6) { uint8_t *q = hp(p, n ? n : 1); if (q && n) js_write((int)(h - WEB_H0), q, n); return 0; }
+        if (WEBK(h) >= 0) { uint8_t *q = hp(p, n ? n : 1); if (q && n) js_write(WEBK(h), q, n); return 0; }
 #endif
         if (h >= 64 || !fh[h]) return n;
         uint8_t *src = hp(p, n ? n : 1);
@@ -152,13 +173,13 @@ uint32_t rt_semihost(uint32_t op, uint32_t arg)
     }
     case 0x06: {                                   /* SYS_READ: returns bytes not read */
         uint32_t h = ld32(arg), p = ld32(arg + 4), n = ld32(arg + 8);
-        if (h & 0x100u) {
-            h &= 0xff; uint32_t k = 0;
+        if (h < 64 && fh[h] == FEATURES) {
+            uint32_t k = 0;
             while (k < n && feat_pos[h] < sizeof features) st8(p + k++, (uint8_t)features[feat_pos[h]++]);
             return n - k;
         }
 #ifdef RT_WEB
-        if (h >= WEB_H0 && h < WEB_H0 + 6) { uint8_t *q = hp(p, n ? n : 1); return n - (q && n ? js_read((int)(h - WEB_H0), q, n) : 0); }
+        if (WEBK(h) >= 0) { uint8_t *q = hp(p, n ? n : 1); return n - (q && n ? js_read(WEBK(h), q, n) : 0); }
 #endif
         if (h >= 64 || !fh[h]) return n;
         uint8_t *dst = hp(p, n ? n : 1);
@@ -166,22 +187,22 @@ uint32_t rt_semihost(uint32_t op, uint32_t arg)
         size_t r = n ? fread(dst, 1, n, fh[h]) : 0;
         return n - (uint32_t)r;
     }
-    case 0x09: {                                   /* SYS_ISTTY */
-        uint32_t h = ld32(arg);
-        if (h & 0x100u) return 0;
-        return (h < 64 && (fh[h] == stdin || fh[h] == stdout || fh[h] == stderr)) ? 1 : 0;
-    }
+    case 0x09:                                     /* SYS_ISTTY */
+        /* qemu answers isatty() of the host fd: its console is run.sh's redirected stdout
+         * and files are files, so never a tty, and SYS_ERRNO then reports ENOTTY (25) */
+        sh_errno = 25;
+        return 0;
     case 0x0a: {                                   /* SYS_SEEK (absolute) */
         uint32_t h = ld32(arg), pos = ld32(arg + 4);
-        if (h & 0x100u) { feat_pos[h & 0xff] = pos; return 0; }
+        if (h < 64 && fh[h] == FEATURES) { feat_pos[h] = pos; return 0; }
         if (h >= 64 || !fh[h]) return (uint32_t)-1;
         return fseek(fh[h], (long)pos, SEEK_SET) ? (uint32_t)-1 : 0;
     }
     case 0x0c: {                                   /* SYS_FLEN */
         uint32_t h = ld32(arg);
-        if (h & 0x100u) return sizeof features;
+        if (h < 64 && fh[h] == FEATURES) return sizeof features;
 #ifdef RT_WEB
-        if (h >= WEB_H0 && h < WEB_H0 + 6) return 0;
+        if (WEBK(h) >= 0) return 0;
 #endif
         if (h >= 64 || !fh[h]) return (uint32_t)-1;
         long cur = ftell(fh[h]); fseek(fh[h], 0, SEEK_END); long len = ftell(fh[h]); fseek(fh[h], cur, SEEK_SET);
@@ -219,6 +240,7 @@ int main(int argc, char **argv)
         if (!p) rt_fatal("segment outside memory", rt_segs[k].addr);
         memcpy(p, rt_segs[k].data, rt_segs[k].len);
     }
+    sys_init();
     R[13] = ld32(0);                               /* vector table: initial sp, reset */
     R[14] = 0xffffffffu;
     rt_call(ld32(4));

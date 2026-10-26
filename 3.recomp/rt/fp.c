@@ -28,8 +28,11 @@ static int clz128(u128 x)
     uint64_t hi = (uint64_t)(x >> 64);
     return hi ? __builtin_clzll(hi) : 64 + __builtin_clzll((uint64_t)x);
 }
-uint64_t fma64_exact(uint64_t a, uint64_t b, uint64_t c)
+uint64_t fma64_exact(uint64_t a, uint64_t b, uint64_t c) { int t; return fma64_exact_t(a, b, c, &t); }
+/* *tiny: the exact (unrounded) result is nonzero and below 2^-1022 (for FPSCR.FZ) */
+uint64_t fma64_exact_t(uint64_t a, uint64_t b, uint64_t c, int *tiny)
 {
+    *tiny = 0;
     const uint64_t EM = 0x7ff, MM = (1ull << 52) - 1;
     int ea = (int)((a >> 52) & EM), eb = (int)((b >> 52) & EM), ec = (int)((c >> 52) & EM);
     /* inf / nan operands, by sign rules on the exact product (which is never computed: a
@@ -96,6 +99,7 @@ uint64_t fma64_exact(uint64_t a, uint64_t b, uint64_t c)
     else if (top < T) { m <<= (T - top); e -= (T - top); }
     /* now value = m * 2^e with m in [2^116, 2^117). biased exponent of result: */
     int be = e + 116 + 1023;                            /* m = 1.xxx * 2^116 */
+    if (be <= 0) *tiny = 1;
     int drop = 64;                                      /* bits below the 53 bit mantissa */
     if (be <= 0) {                                      /* subnormal: drop more bits */
         int extra = 1 - be;

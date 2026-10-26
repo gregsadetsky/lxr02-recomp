@@ -13,6 +13,10 @@ done | xargs -P "$J" -I{} sh -c 'NOBUILD=1 ./run.sh qemu {} > /dev/null 2>&1 || 
 pass=0; fail=0
 while read -r s; do
   NOBUILD=1 ./run.sh recompw "$s" > /dev/null 2>&1
-  if ./compare.sh "$s" qemu recompw > /dev/null 2>&1; then pass=$((pass+1)); else fail=$((fail+1)); echo "DIFFERS: $s"; fi
+  if ./compare.sh "$s" qemu recompw > /dev/null 2>&1; then
+    pass=$((pass+1))
+    # keep disk use down: a matching run keeps only its small text outputs (KEEP=1 keeps all)
+    [ "${KEEP:-0}" = 1 ] || rm -f "out/qemu/$s/card.img" "out/recompw/$s/card.img" "out/qemu/$s/"dac?.raw "out/recompw/$s/"dac?.raw
+  else fail=$((fail+1)); echo "DIFFERS: $s"; fi
 done < "$L"
 echo "sweep: $pass identical, $fail differ"

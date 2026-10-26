@@ -1,0 +1,16 @@
+# scenarios check.sh runs on every check (recompw vs qemu golden hashes in scenario/golden/)
+kit-zippe
+nocard-notes
+boot-notes
+buttons
+knob-turn
+fader
+idle-zippe
+live-zippe
+psweep/04-zippe-params0
+psweep/04-zippe-params1
+psweep/04-zippe-params2
+psweep/04-zippe-params3
+psweep/04-zippe-vel
+psweep/04-zippe-dense
+psweep/04-zippe-pitch

@@ -16,11 +16,18 @@ HERE=$(cd "$(dirname "$0")/.." && pwd); T=$(mktemp -d)
 cp "$BLANK" "$OUT"
 printf '\000' > "$T/proj.idx"
 printf 'web     ' > "$T/prj.nfo"
-uv run --no-project python - "$HERE/cards/src/glo-firmware-default.cfg" "$T/glo.cfg" <<'PY'
+GLO_PITCH=${GLO_PITCH:-0} uv run --no-project python - "$HERE/cards/src/glo-firmware-default.cfg" "$T/glo.cfg" <<'PY'
 import sys
 g = bytearray(open(sys.argv[1], "rb").read())
 assert len(g) == 30 and g[0] == 120 and g[22:29] == b"\x30" * 7, g.hex()
-g[22:29] = bytes(range(36, 43))
+import os
+# default: every voice on channel 1, notes 36..42. GLO_PITCH=1: voice i on channel i+2
+# (PAR_MIDI_CHAN_1..6 at bytes 1..6, PAR_MIDI_CHAN_7 at 12) answering any note (0), so the
+# note number sets the pitch.
+if os.environ.get("GLO_PITCH") == "1":
+    g[1:7] = bytes(range(2, 8)); g[12] = 8; g[22:29] = bytes(7)
+else:
+    g[22:29] = bytes(range(36, 43))
 open(sys.argv[2], "wb").write(g)
 PY
 mmd -i "$OUT" ::/PROJ00

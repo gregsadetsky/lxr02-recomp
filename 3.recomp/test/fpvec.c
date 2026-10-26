@@ -186,13 +186,11 @@ static void ints(uint32_t a, uint32_t b)
     { uint32_t lo = b, hi = a; __asm volatile ("umlal %0, %1, %2, %3" : "+r"(lo), "+r"(hi) : "r"(a), "r"(b)); put(lo); put(hi); }
 }
 
-int main(void)
+static void pass(unsigned nrand)
 {
-    out = fopen("fpvec.bin", "wb");
-    if (!out) return 1;
     for (unsigned i = 0; i < NE32; i++) { un32(E32[i]); for (unsigned j = 0; j < NE32; j++) { bin32(E32[i], E32[j]); for (unsigned k = 0; k < NE32; k++) fma32(E32[i], E32[j], E32[k]); } }
     for (unsigned i = 0; i < NE64; i++) { un64(E64[i]); for (unsigned j = 0; j < NE64; j++) { bin64(E64[i], E64[j]); for (unsigned k = 0; k < NE64; k++) fma64(E64[i], E64[j], E64[k]); } }
-    for (unsigned n = 0; n < 200000; n++) {
+    for (unsigned n = 0; n < nrand; n++) {
         uint32_t a = rf32(), b = rf32(), c = rf32();
         un32(a); bin32(a, b); fma32(a, b, c);
         /* near-cancellation and sticky probes for the fused paths */
@@ -205,6 +203,19 @@ int main(void)
         ints(rnd(), rnd());
         if ((n & 1023) == 0) ints(E32[n % NE32], E32[(n / 7) % NE32]);
     }
+}
+
+int main(void)
+{
+    out = fopen("fpvec.bin", "wb");
+    if (!out) return 1;
+    pass(200000);
+    /* again with FPSCR.FZ = 1, as interrupt handlers run (the firmware sets FPDSCR.FZ) */
+    uint32_t f;
+    __asm volatile ("vmrs %0, fpscr" : "=r"(f));
+    f |= 1u << 24;
+    __asm volatile ("vmsr fpscr, %0" : : "r"(f));
+    pass(100000);
     fwrite(buf, 4, nb, out);
     fclose(out);
     printf("fpvec done\n");

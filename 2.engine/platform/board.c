@@ -40,6 +40,22 @@ volatile uint32_t lxr_fpscr;
 static const lxr_scenario *sc;
 static uint32_t ev_next;              /* next scenario event index */
 static int in_isr;                    /* no nested interrupts are modelled */
+/* exception entry/return as the cortex-m7 fpu does it: the handler runs with FPSCR's
+ * control bits (AHP, DN, FZ, RMode) taken from FPDSCR, the interrupted code's FPSCR comes
+ * back on return. the firmware sets FPDSCR.FZ (Soundengine.c:74), so float math inside
+ * interrupts (TIM2's renders during sd access, midi in TIM2) flushes denormals to zero. */
+static uint32_t isr_fpscr_saved;
+static void isr_enter(void)
+{
+    in_isr = 1;
+    isr_fpscr_saved = __get_FPSCR();
+    __set_FPSCR(FPU->FPDSCR & 0x07C00000u);
+}
+static void isr_exit(void)
+{
+    __set_FPSCR(isr_fpscr_saved);
+    in_isr = 0;
+}
 
 /* ------------------------------------------------------------------ output */
 static FILE *f_dac1, *f_dac2, *f_lcd, *f_midi;
@@ -319,7 +335,7 @@ static void uart_rx_event(void)
     if (u->ISR & USART_ISR_RXNE) u->ISR |= USART_ISR_ORE;        /* previous byte never read */
     u->RDR = rxq[rxq_tail++ & 4095u];
     u->ISR |= USART_ISR_RXNE;
-    if (u->CR1 & USART_CR1_RXNEIE) { in_isr = 1; USART3_IRQHandler(); in_isr = 0; n_rx_delivered++; } else n_rx_dropped++;
+    if (u->CR1 & USART_CR1_RXNEIE) { isr_enter(); USART3_IRQHandler(); isr_exit(); n_rx_delivered++; } else n_rx_dropped++;
     u->ISR &= ~USART_ISR_RXNE;                                    /* the handler read RDR */
     rx_due = rxq_head != rxq_tail ? lxr_now + UART_BYTE_CYCLES : UINT64_MAX;
 }
@@ -329,7 +345,7 @@ static void uart_tx_event(void)
     if (!(u->CR1 & USART_CR1_TXEIE)) { tx_due = UINT64_MAX; return; }
     u->TDR = 0xFFFFu;                                             /* sentinel: write detection */
     u->ISR |= USART_ISR_TXE;
-    in_isr = 1; USART3_IRQHandler(); in_isr = 0;
+    isr_enter(); USART3_IRQHandler(); isr_exit();
     if (u->TDR != 0xFFFFu) {
         fprintf(f_midi, "%8lu ms %02x\n", now_ms(), (unsigned)(u->TDR & 0xFF));
         u->ISR &= ~USART_ISR_TXE;
@@ -478,10 +494,10 @@ static void dma_event(void)
     if (i2s_buf[0] || i2s_buf[1]) blocks_out++;
     dma_rounds++;
     /* transfer complete: SPI2 then SPI3, through the firmware's own callback */
-    in_isr = 1;
+    isr_enter();
     if (i2s_buf[0]) HAL_I2S_TxCpltCallback(&hi2s2);
     if (i2s_buf[1]) HAL_I2S_TxCpltCallback(&hi2s3);
-    in_isr = 0;
+    isr_exit();
 }
 
 enum { SRC_TIM14, SRC_SYSTICK, SRC_DMA, SRC_TIM2, SRC_UART_RX, SRC_UART_TX, SRC_ENC, SRC_SCENARIO, SRC_N };
@@ -507,17 +523,17 @@ static void fire(int s)
     case SRC_TIM14:
         vt14.base_cnt = 0; vt14.base_cycle = vt14.due; vt14.due = timer_due(&vt14);
         timer_publish(&vt14);
-        in_isr = 1; TIM8_TRG_COM_TIM14_IRQHandler(); in_isr = 0; n_tim14++;
+        isr_enter(); TIM8_TRG_COM_TIM14_IRQHandler(); isr_exit(); n_tim14++;
         break;
     case SRC_SYSTICK:
         systick_due += LXR_HCLK / 1000u;
-        in_isr = 1; SysTick_Handler(); in_isr = 0;
+        isr_enter(); SysTick_Handler(); isr_exit();
         break;
     case SRC_DMA: dma_event(); break;
     case SRC_TIM2:
         vt2.base_cnt = 0; vt2.base_cycle = vt2.due; vt2.due = timer_due(&vt2);
         timer_publish(&vt2);
-        in_isr = 1; TIM2_IRQHandler(); in_isr = 0; n_tim2++;
+        isr_enter(); TIM2_IRQHandler(); isr_exit(); n_tim2++;
         break;
     case SRC_UART_RX: uart_rx_event(); break;
     case SRC_UART_TX: uart_tx_event(); break;

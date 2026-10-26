@@ -462,6 +462,9 @@ class Gen:
                 out.append(f"F.{k}[{n}] = {'ld64' if k == 'd' else 'ld32'}(a_ + {off});"); off += 8 if k == "d" else 4
             if i.writeback: out.append(f"R[{b}] = a_ + {off};")
             return f"{{ uint32_t a_ = R[{b}]; " + " ".join(out) + " }"
+        if base == "vmsr":
+            if not i.op_str.lower().startswith("fpscr"): raise Unhandled("vmsr " + i.op_str)
+            return f"FPSCR = {self.R(i, ops[-1].reg)}; rt_fz_mode_check();"
         if base == "vmrs":
             if self.md.reg_name(ops[0].reg).lower().startswith("apsr"):
                 return "N = FPSCR >> 31; Z = (FPSCR >> 30) & 1u; C = (FPSCR >> 29) & 1u; V = (FPSCR >> 28) & 1u;"
@@ -470,18 +473,18 @@ class Gen:
             return self.vmov(i, m, ops)
         if base in ("vadd", "vsub", "vmul", "vdiv"):
             w = "64" if is64 else "32"; R_ = self.D if is64 else self.S
-            f = {"vadd": "fadd", "vsub": "fsub", "vmul": "fmul", "vdiv": "fdiv"}[base] + w
+            f = {"vadd": "xadd", "vsub": "xsub", "vmul": "xmul", "vdiv": "xdiv"}[base] + w
             return f"{R_(ops[0])} = {f}({R_(ops[1])}, {R_(ops[2])});"
         if base in ("vmaxnm", "vminnm"):
             w = "64" if is64 else "32"; R_ = self.D if is64 else self.S
-            return f"{R_(ops[0])} = f{base[1:]}{w}({R_(ops[1])}, {R_(ops[2])});"
+            return f"{R_(ops[0])} = x{base[1:]}{w}({R_(ops[1])}, {R_(ops[2])});"
         if base == "vrintz":
             w = "64" if is64 else "32"; R_ = self.D if is64 else self.S
-            return f"{R_(ops[0])} = frintz{w}({R_(ops[1])});"
+            return f"{R_(ops[0])} = xrintz{w}({R_(ops[1])});"
         if base in ("vabs", "vneg", "vsqrt"):
             R_ = self.D if is64 else self.S
             if base == "vsqrt" and is64: raise Unhandled("vsqrt.f64")
-            f = {"vabs": "fabs", "vneg": "fneg", "vsqrt": "fsqrt"}[base] + ("64" if is64 else "32")
+            f = {"vabs": "fabs", "vneg": "fneg", "vsqrt": "xsqrt"}[base] + ("64" if is64 else "32")
             return f"{R_(ops[0])} = {f}({R_(ops[1])});"
         if base in ("vfma", "vfms", "vfnma", "vfnms"):
             w = "64" if is64 else "32"; R_ = self.D if is64 else self.S
@@ -490,22 +493,22 @@ class Gen:
             # FPMulAdd(addend, op1, op2): vfma d+n*m, vfms d+(-n)*m, vfnma (-d)+(-n)*m, vfnms (-d)+n*m
             ad = d if base in ("vfma", "vfms") else f"{neg}({d})"
             o1 = n if base in ("vfma", "vfnms") else f"{neg}({n})"
-            return f"{d} = fmuladd{w}({ad}, {o1}, {mm});"
+            return f"{d} = xmuladd{w}({ad}, {o1}, {mm});"
         if base in ("vmla", "vmls", "vnmla", "vnmls"):
             w = "64" if is64 else "32"; R_ = self.D if is64 else self.S
             d, n, mm = R_(ops[0]), R_(ops[1]), R_(ops[2])
             neg = "fneg" + w
-            p = f"fmul{w}({n}, {mm})"
+            p = f"xmul{w}({n}, {mm})"
             # vmla d+p, vmls d+(-p), vnmla (-d)+(-p), vnmls (-d)+p  (FPAdd, non fused)
             ad = d if base in ("vmla", "vmls") else f"{neg}({d})"
             pp = p if base in ("vmla", "vnmls") else f"{neg}({p})"
-            return f"{d} = fadd{w}({ad}, {pp});"
+            return f"{d} = xadd{w}({ad}, {pp});"
         if base in ("vcmp", "vcmpe"):
             R_ = self.D if is64 else self.S
             b2 = R_(ops[1]) if ops[1].type == A.ARM_OP_REG else "0"
             if ops[1].type != A.ARM_OP_REG and (ops[1].type not in (A.ARM_OP_IMM, A.ARM_OP_FP) or (ops[1].imm if ops[1].type == A.ARM_OP_IMM else ops[1].fp) != 0):
                 raise Unhandled("vcmp imm " + i.op_str)
-            return f"FPSCR = (FPSCR & 0x0fffffffu) | (fcmp{'64' if is64 else '32'}({R_(ops[0])}, {b2}) << 28);"
+            return f"FPSCR = (FPSCR & 0x0fffffffu) | (xcmp{'64' if is64 else '32'}({R_(ops[0])}, {b2}) << 28);"
         if base in ("vseleq", "vselgt", "vselge", "vselvs"):
             R_ = self.D if is64 else self.S
             c = {"vseleq": "Z", "vselgt": "(!Z && N == V)", "vselge": "(N == V)", "vselvs": "V"}[base]
@@ -541,19 +544,19 @@ class Gen:
             if parts[1:] == ["f32", "f16"]: return f"{self.S(ops[0])} = cvt_f32_f16({self.S(ops[1])});"
             if parts[1:] == ["f16", "f32"]:
                 d = self.S(ops[0])
-                return f"{d} = ({d} & 0xffff0000u) | cvt_f16_f32({self.S(ops[1])});"
+                return f"{d} = ({d} & 0xffff0000u) | xcvt_f16_f32({self.S(ops[1])});"
             raise Unhandled(m)
         to, frm = parts[1], parts[2]
         fix = ops[2].imm if len(ops) == 3 else None
         key = (to, frm)
         if fix is not None:
             if key == ("f32", "s32"): return f"{self.S(ops[0])} = cvt_f32_s32_fix({self.S(ops[1])}, {fix});"
-            if key == ("s32", "f32"): return f"{self.S(ops[0])} = cvt_s32_f32_fix({self.S(ops[1])}, {fix});"
+            if key == ("s32", "f32"): return f"{self.S(ops[0])} = xcvt_s32_f32_fix({self.S(ops[1])}, {fix});"
             raise Unhandled(m + " fixed")
         tab = {("f32", "s32"): ("S", "cvt_f32_s32", "S"), ("f32", "u32"): ("S", "cvt_f32_u32", "S"),
-               ("s32", "f32"): ("S", "cvt_s32_f32", "S"), ("u32", "f32"): ("S", "cvt_u32_f32", "S"),
-               ("f64", "f32"): ("D", "cvt_f64_f32", "S"), ("f32", "f64"): ("S", "cvt_f32_f64", "D"),
-               ("f64", "s32"): ("D", "cvt_f64_s32", "S"), ("s32", "f64"): ("S", "cvt_s32_f64", "D")}
+               ("s32", "f32"): ("S", "xcvt_s32_f32", "S"), ("u32", "f32"): ("S", "xcvt_u32_f32", "S"),
+               ("f64", "f32"): ("D", "xcvt_f64_f32", "S"), ("f32", "f64"): ("S", "xcvt_f32_f64", "D"),
+               ("f64", "s32"): ("D", "cvt_f64_s32", "S"), ("s32", "f64"): ("S", "xcvt_s32_f64", "D")}
         if key not in tab: raise Unhandled(m)
         dk, f, sk = tab[key]
         return f"{getattr(self, dk)(ops[0])} = {f}({getattr(self, sk)(ops[1])});"

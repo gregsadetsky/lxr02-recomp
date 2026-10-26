@@ -10,5 +10,6 @@ clang $CF -w -fbracket-depth=1024 -c "$OUT/fw.c" -o "$OUT/fw.o"
 clang $CF -w -c "$OUT/image.c" -o "$OUT/image.o"
 clang $CF -Wall -c "$HERE/rt/rt.c" -o "$OUT/rt.o"
 clang $CF -Wall -c "$HERE/rt/fp.c" -o "$OUT/fp.o"
-clang "$OUT/fw.o" "$OUT/image.o" "$OUT/rt.o" "$OUT/fp.o" -o "$OUT/lxr-native" 2>&1 | grep -v 'reducing alignment' || true
+clang $CF -Wall -c "$HERE/rt/fz.c" -o "$OUT/fz.o"
+clang "$OUT/fw.o" "$OUT/image.o" "$OUT/rt.o" "$OUT/fp.o" "$OUT/fz.o" -o "$OUT/lxr-native" 2>&1 | grep -v 'reducing alignment' || true
 echo "$OUT/lxr-native"

@@ -10,7 +10,8 @@ emcc $CF -w -fbracket-depth=1024 -c "$G/fw.c" -o "$G/fw.o"
 emcc $CF -w -c "$G/image.c" -o "$G/image.o"
 emcc $CF -Wall -c "$R/rt/rt.c" -o "$G/rt.o"
 emcc $CF -Wall -c "$R/rt/fp.c" -o "$G/fp.o"
-emcc "$G/fw.o" "$G/image.o" "$G/rt.o" "$G/fp.o" -o "$HERE/site/lxr.js" \
+emcc $CF -Wall -c "$R/rt/fz.c" -o "$G/fz.o"
+emcc "$G/fw.o" "$G/image.o" "$G/rt.o" "$G/fp.o" "$G/fz.o" -o "$HERE/site/lxr.js" \
   -sENVIRONMENT=worker -sMODULARIZE=1 -sEXPORT_NAME=LXR -sINVOKE_RUN=0 -sFORCE_FILESYSTEM=1 \
   -sEXPORTED_RUNTIME_METHODS=FS,callMain,HEAPU8 -sINITIAL_MEMORY=160MB -sSTACK_SIZE=4MB -sEXIT_RUNTIME=1
 gzip -9 -n -c "$ROOT/2.engine/cards/kit-zippe.img" > "$HERE/site/card.img.gz"

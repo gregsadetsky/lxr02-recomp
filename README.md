@@ -28,5 +28,6 @@ cmake --build build-fw/release              # erica's build: the source list and
 2.engine/build.sh arm && 4.web/build.sh     # -> 4.web/site
 ```
 
-tests: `3.recomp/test/build.sh` (fp instructions, qemu vs translation), and per scenario
+tests: `2.engine/check.sh` (translation vs qemu golden hashes, `check.sh update` makes them),
+`3.recomp/test/build.sh` (fp instructions, qemu vs translation), and per scenario
 `cd 2.engine && ./run.sh qemu kit-zippe && ./run.sh recompw kit-zippe && ./compare.sh kit-zippe qemu recompw`
