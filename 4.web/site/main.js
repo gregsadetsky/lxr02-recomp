@@ -25,7 +25,12 @@ function play(key) {                  // a note on channel 1; the card's setting
   pad[key].classList.add("hit"); setTimeout(() => pad[key].classList.remove("hit"), 120);
 }
 $("intro").showModal();
-$("intro").addEventListener("cancel", (e) => e.preventDefault());   // esc does not skip it
+// the dialog only closes by starting: esc is swallowed, and chrome's second esc (which
+// ignores preventDefault on cancel) reopens it.
+let started = false;
+$("intro").addEventListener("cancel", (e) => e.preventDefault());
+$("intro").addEventListener("keydown", (e) => { if (e.key === "Escape") e.preventDefault(); });
+$("intro").addEventListener("close", () => { if (!started) $("intro").showModal(); });
 
 // front panel buttons and their leds: same numbering in the firmware (buttonHandler.h
 // ButtonNumbers, ledHandler.h LedNumbers): shift register bit i*8+b, 40 = page down.
@@ -75,7 +80,9 @@ function showLeds(bytes) {          // 5 shift register bytes + page down
 
 // six faders: adc_buf[8..13], read by adcPots.c adc_checkFaders as (raw>>4)/4096, squared,
 // as the volume of voices 1..6. the board starts them at 0xfff0 (fully up). the seventh,
-// master, is analog after the dacs on the device: here a gain after the firmware's output
+// master, never reaches the firmware: adc1 converts 14 channels (8 knob wipers, 6 faders),
+// adc2 is never started (main.c:869 commented out) and no code reads a master level. so it
+// acts on the analog signal after the dacs; here a gain after the firmware's output
 // (squared position; the real fader's taper is not known).
 ["DRUM1", "DRUM2", "DRUM3", "SNARE", "CLP/CYM", "HIHATS"].forEach((name, k) => {
   const f = add($("faders"), "label", "fader", `${name}<input type="range" min="0" max="4095" value="4095">`);
@@ -165,6 +172,7 @@ document.body.insertAdjacentHTML("beforeend", `<svg width="0" height="0" style="
 $("start").onclick = async () => {
   $("start").disabled = true;
   if (!supported) return;
+  started = true;
   $("intro").close();
   try {
     const ctx = new AudioContext({ sampleRate: 44100 });   // device: 44140.625 hz, 0.09% slow
@@ -212,6 +220,7 @@ $("start").onclick = async () => {
     }, 500);
   } catch (e) {
     $("msg").textContent = "could not start audio here: " + e.message;
+    started = false;
     if (!$("intro").open) $("intro").showModal();
     log(e);
   }
