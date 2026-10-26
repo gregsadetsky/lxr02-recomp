@@ -16,8 +16,8 @@ if (!supported) { $("msg").textContent = "desktop browser only for now"; $("star
 
 const pad = {};
 for (const [name, key, note] of VOICES) {
-  const b = pad[key] = add($("pads"), "button", "", `<b>${key}</b><small>${name}</small>`);
-  b.onpointerdown = () => play(key);
+  pad[key] = add($("pads"), "kbd", "", key);
+  $("pads").append(` ${name}   `);
 }
 function play(key) {                  // a note on channel 1; the card's settings map 36..42 to the voices
   const v = VOICES.find((x) => x[1] === key);
