@@ -204,15 +204,15 @@ async function saved(card) {
     const r = await fetch("/api/groove", { method: "POST", body: blob, headers: { "Content-Type": "application/octet-stream" } });
     if (!r.ok) throw new Error(`server ${r.status}`);
     const { id } = await r.json();
-    $("url").value = `${location.origin}/?g=${id}`;
-    $("copy").disabled = false;
+    const link = `${location.origin}/?g=${id}`;
+    $("url").textContent = link; $("url").href = link; $("link").hidden = false;
     window.__groove = { id, bytes: blob.length };
     saveDone();
   } catch (e) { saveDone("could not save: " + e.message); }
 }
 $("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText($("url").value); $("savemsg").textContent = "copied"; }
-  catch { $("url").select(); $("savemsg").textContent = "press ctrl+c / cmd+c"; }
+  try { await navigator.clipboard.writeText($("url").textContent); $("savemsg").textContent = "copied"; }
+  catch { getSelection().selectAllChildren($("url")); $("savemsg").textContent = "press ctrl+c / cmd+c"; }
 };
 
 $("start").onclick = async () => {

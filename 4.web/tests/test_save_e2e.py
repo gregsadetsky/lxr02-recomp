@@ -41,8 +41,8 @@ def edit_and_save(pg, engine):
     for st in (31, 15): click_button(pg, st)                  # snare steps 5 13
     click_button(pg, 33); time.sleep(2); click_button(pg, 33)  # play, stop
     t0 = time.time(); pg.click("#save")
-    pg.wait_for_function("document.getElementById('url').value.includes('?g=')", timeout=30000)
-    return pg.input_value("#url"), time.time() - t0, pg.evaluate("window.__groove")
+    pg.wait_for_function("document.getElementById('url').textContent.includes('?g=')", timeout=30000)
+    return pg.inner_text("#url"), time.time() - t0, pg.evaluate("window.__groove")
 
 with sync_playwright() as p:
     b = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
@@ -52,8 +52,8 @@ with sync_playwright() as p:
     check("page A: save gives a link", "?g=" in url, f"{url}, {dt:.1f} s, {g['bytes']} bytes")
     check("groove is under 10 KB", g["bytes"] <= 10 * 1024, f"{g['bytes']} bytes")
     gid = url.split("?g=")[1]
-    pg.click("#save"); pg.wait_for_function(f"!document.getElementById('url').value.endsWith('{gid}')", timeout=30000)
-    check("a second save gives another link", pg.input_value("#url") != url)
+    pg.click("#save"); pg.wait_for_function(f"!document.getElementById('url').textContent.endsWith('{gid}')", timeout=30000)
+    check("a second save gives another link", pg.inner_text("#url") != url)
     check("page A: no errors", not errs, "; ".join(errs))
     b.close()
 
