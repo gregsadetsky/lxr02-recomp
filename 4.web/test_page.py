@@ -1,6 +1,6 @@
 """drive the page in headless chromium: start it with ?test=zippe&capture=<s>, wait for the
 captured audio, compare it with the qemu cortex-m7 run of the same scenario (2.engine
-out/qemu/kit-zippe/dac1.raw), report lcd text, buffer state, timing.
+out/qemu/webcard-zippe/dac1.raw), report lcd text, buffer state, timing.
 usage: uv run --no-project --with playwright python test_page.py <engine> [seconds]"""
 import sys, time, base64, subprocess, os, array
 from playwright.sync_api import sync_playwright
@@ -27,7 +27,7 @@ try:
 finally:
     pass
 got = base64.b64decode(b64)
-ref = open(os.environ.get("REF") or os.path.join(HERE, "..", "2.engine", "out", "qemu", "kit-zippe", "dac1.raw"), "rb").read()[:len(got)]
+ref = open(os.environ.get("REF") or os.path.join(HERE, "..", "2.engine", "out", "qemu", "webcard-zippe", "dac1.raw"), "rb").read()[:len(got)]
 a = array.array("h"); a.frombytes(got); r = array.array("h"); r.frombytes(ref)
 diff = sum(1 for x, y in zip(a, r) if x != y)
 print(f"{engine}: captured {len(a)//2} frames in {dt:.1f} s wall ({len(a)/2/44140/dt:.2f}x the 44.1 kHz audio clock incl. start)")

@@ -49,6 +49,8 @@ const PANEL = [            // dom order: voice, select, steps, mode rows
             [24, "VOICE", 5], [25, "PERF", 6], [26, "LOAD", 7], [27, "SAVE", 8]], 5.83],
 ];
 const ledEl = {};
+let presses = 0;                     // panel button presses so far (latch: no other press during the hold)
+$("dev").addEventListener("contextmenu", (e) => e.preventDefault());
 for (const [x0, x1] of [[1, 4], [5, 8], [9, 16]]) {     // the bracket lines around the three groups
   const g = $("dev").insertBefore(document.createElement("div"), $("dev").firstChild); g.className = "grp";
   Object.assign(g.style, { left: `calc(var(--u) * ${x0 - 0.45})`, width: `calc(var(--u) * ${x1 - x0 + 0.9})`,
@@ -65,9 +67,22 @@ for (const [kind, btns, y] of PANEL) {
     ledEl[n] = b.querySelector("i");
     // the firmware scans the buttons from its main loop: a press and release arriving in the
     // same poll would never be seen, so a press is held for at least 40 ms.
-    let t0 = 0, down = false;
-    const up = () => { if (!down) return; down = false; setTimeout(() => send(`button ${n} 0`), Math.max(0, 40 - (performance.now() - t0))); };
-    b.onpointerdown = (e) => { try { b.setPointerCapture(e.pointerId); } catch {} down = true; t0 = performance.now(); send(`button ${n} 1`); };
+    // a long press (500 ms, no other button pressed meanwhile) latches the button down, for
+    // combinations like LOAD + KIT with a mouse; the next tap on it releases it.
+    let t0 = 0, down = false, latched = false, swallow = false, seq0 = 0;
+    const release = (wait) => setTimeout(() => send(`button ${n} 0`), wait);
+    const up = () => {
+      if (swallow) { swallow = false; return; }
+      if (!down) return; down = false;
+      const held = performance.now() - t0;
+      if (held >= 500 && presses === seq0 + 1) { latched = true; b.classList.add("latched"); return; }
+      release(Math.max(0, 40 - held));
+    };
+    b.onpointerdown = (e) => {
+      try { b.setPointerCapture(e.pointerId); } catch {}
+      if (latched) { latched = false; b.classList.remove("latched"); swallow = true; release(0); return; }
+      down = true; t0 = performance.now(); seq0 = presses++; send(`button ${n} 1`);
+    };
     b.onpointerup = up; b.onpointercancel = up;
   }
 }
@@ -164,8 +179,8 @@ document.body.insertAdjacentHTML("beforeend", `<svg width="0" height="0" style="
   e.onwheel = (ev) => {
     ev.preventDefault();
     wacc -= ev.deltaY * (ev.deltaMode ? 40 : 1);
-    while (wacc >= 50) { wacc -= 50; detent(1); }
-    while (wacc <= -50) { wacc += 50; detent(-1); }
+    while (wacc >= 100) { wacc -= 100; detent(1); }   // a wheel notch is ~100 px in chrome, 3 lines (120) in firefox
+    while (wacc <= -100) { wacc += 100; detent(-1); }
   };
 }
 

@@ -7,6 +7,9 @@ knob-turn
 fader
 idle-zippe
 live-zippe
+webcard-zippe
+webcard-kits
+webcard-loadkit
 psweep/04-zippe-params0
 psweep/04-zippe-params1
 psweep/04-zippe-params2

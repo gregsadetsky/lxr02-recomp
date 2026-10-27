@@ -25,6 +25,7 @@ cmake -S upstream/lxr-desktop-app -B build-fw/release -G Ninja -DCMAKE_BUILD_TYP
 cmake --build build-fw/release              # erica's build: the source list and per file flags
 2.engine/tools/mkcard.sh 2.engine/cards/blank-fat32-64m.img
 2.engine/tools/mkcard-kit.sh 2.engine/cards/blank-fat32-64m.img 2.engine/cards/src/04-zippe.snd 2.engine/cards/kit-zippe.img
+2.engine/tools/mkcard-project.sh 2.engine/cards/blank-fat32-64m.img 2.engine/cards/web.img 2.engine/cards/src/web/*.snd
 2.engine/build.sh arm && 4.web/build.sh     # -> 4.web/site
 ```
 

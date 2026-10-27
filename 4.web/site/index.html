@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LXR-02 in the browser (completely alpha)</title>
-<meta name="description" content="The LXR-02 drum machine's firmware running in your browser. Completely alpha.">
+<meta name="description" content="The LXR-02 drum machine's firmware running in your browser.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://lxr02-recomp.greg.technology/">
 <meta property="og:title" content="LXR-02 in the browser (completely alpha)">
-<meta property="og:description" content="The LXR-02 drum machine's firmware running in your browser. Completely alpha.">
+<meta property="og:description" content="The LXR-02 drum machine's firmware running in your browser.">
 <meta property="og:image" content="https://lxr02-recomp.greg.technology/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -62,6 +62,7 @@
         display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * .1); touch-action: none; cursor: pointer; white-space: nowrap; }
   .pb i { display: block; width: var(--cap); height: var(--cap); border-radius: 50%; background: radial-gradient(circle at 40% 35%, #8c8c8c, #4b4b4b 72%);
           box-shadow: 0 2px 3px #000c; }
+  .pb.latched > i, .pb.latched .bz { outline: 2px solid #ff8a2a; outline-offset: 2px; }
   .pb i.on { background: radial-gradient(circle at 40% 35%, #ffd6d0, #ff3a2a 45%, #a01a10); box-shadow: 0 0 calc(var(--u) * .22) #ff3a2acc; }
   .pb:active i { filter: brightness(.75); }
   .pb b { font-weight: normal; background: #d8d8d8; color: #111; padding: 0 .3em; border-radius: 1px; }

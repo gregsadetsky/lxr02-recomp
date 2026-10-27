@@ -1,0 +1,32 @@
+# web card: hold LOAD, press KIT, encoder +3, push: loads kit 3 (METRO) from the panel
+card cards/web.img
+seed c0ffee
+4000 button 26 1
+4300 button 28 1
+4400 button 28 0
+4600 button 26 0
+5000 encoder 3
+5600 encbutton 1
+5700 encbutton 0
+6500 midi 90 24 7f
+6502 midi 90 25 7f
+6504 midi 90 26 7f
+6506 midi 90 27 7f
+6508 midi 90 28 7f
+6510 midi 90 29 7f
+6512 midi 90 2a 7f
+6900 midi 90 24 7f
+6902 midi 90 25 7f
+6904 midi 90 26 7f
+6906 midi 90 27 7f
+6908 midi 90 28 7f
+6910 midi 90 29 7f
+6912 midi 90 2a 7f
+7300 midi 90 24 7f
+7302 midi 90 25 7f
+7304 midi 90 26 7f
+7306 midi 90 27 7f
+7308 midi 90 28 7f
+7310 midi 90 29 7f
+7312 midi 90 2a 7f
+8500 end

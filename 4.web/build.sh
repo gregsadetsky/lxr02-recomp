@@ -14,7 +14,7 @@ emcc $CF -Wall -c "$R/rt/fz.c" -o "$G/fz.o"
 emcc "$G/fw.o" "$G/image.o" "$G/rt.o" "$G/fp.o" "$G/fz.o" -o "$HERE/site/lxr.js" \
   -sENVIRONMENT=worker -sMODULARIZE=1 -sEXPORT_NAME=LXR -sINVOKE_RUN=0 -sFORCE_FILESYSTEM=1 \
   -sEXPORTED_RUNTIME_METHODS=FS,callMain,HEAPU8 -sINITIAL_MEMORY=160MB -sSTACK_SIZE=4MB -sEXIT_RUNTIME=1
-gzip -9 -n -c "$ROOT/2.engine/cards/kit-zippe.img" > "$HERE/site/card.img.gz"
+gzip -9 -n -c "$ROOT/2.engine/cards/web.img" > "$HERE/site/card.img.gz"   # 11 kits, zippe in slot 00 (tools/mkcard-project.sh)
 # comparison engine: erica's sources built by clang directly (2.engine/build.sh wasm)
 "$ROOT/2.engine/build.sh" wasm > "$HERE/build/plain-build.log" 2>&1 || { tail -20 "$HERE/build/plain-build.log"; exit 1; }
 mkdir -p "$HERE/site/plain"; cp "$ROOT/2.engine/build/wasm/lxr-web.js" "$ROOT/2.engine/build/wasm/lxr-web.wasm" "$HERE/site/plain/"
