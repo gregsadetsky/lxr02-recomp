@@ -174,6 +174,7 @@ $("start").onclick = async () => {
   if (!supported) return;
   started = true;
   $("intro").close();
+  $("lcd").textContent = "loading...\n";       // until the firmware draws its first screen
   try {
     const ctx = new AudioContext({ sampleRate: 44100 });   // device: 44140.625 hz, 0.09% slow
     await ctx.audioWorklet.addModule("audio.js");
@@ -197,7 +198,7 @@ $("start").onclick = async () => {
       if (m.capture !== undefined) window.__capture = m.capture;
       if (m.lcd !== undefined) {
         const p = m.lcd.split("|");            // "   1133 ms |line 1          |line 2          |"
-        if (p.length >= 3) $("lcd").textContent = p[1] + "\n" + p[2];
+        if (p.length >= 3 && (p[1].trim() || p[2].trim() || !$("lcd").textContent.startsWith("loading"))) $("lcd").textContent = p[1] + "\n" + p[2];
         const l = m.lcd.trim().split(/\s+/);   // "   6800 ms leds 04 00 01 01 82 00"
         if (l[2] === "leds") showLeds(l.slice(3).map((x) => parseInt(x, 16)));
       }
