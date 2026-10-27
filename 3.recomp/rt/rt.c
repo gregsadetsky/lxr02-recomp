@@ -91,9 +91,9 @@ void rt_sys_wr(uint32_t a, uint32_t v, int n)
 #include <emscripten.h>
 EM_JS(void, js_write, (int kind, const uint8_t *p, uint32_t n), { Module.hostWrite(kind, p, n); });
 EM_JS(uint32_t, js_read, (int kind, uint8_t *p, uint32_t n), { return Module.hostRead(kind, p, n); });
-static const char *web_names[] = { "dac1.raw", "dac2.raw", "lcd.txt", "midiout.txt", "live.in", "params.txt" };
-static char web_tag[6];                               /* fh[h] marker for each web file */
-#define WEBK(h) ((h) < 64 && fh[h] >= (FILE *)(void *)web_tag && fh[h] < (FILE *)(void *)(web_tag + 6) ? (int)((char *)(void *)fh[h] - web_tag) : -1)
+static const char *web_names[] = { "dac1.raw", "dac2.raw", "lcd.txt", "midiout.txt", "live.in", "params.txt", "snapshot.ready" };
+static char web_tag[7];                               /* fh[h] marker for each web file */
+#define WEBK(h) ((h) < 64 && fh[h] >= (FILE *)(void *)web_tag && fh[h] < (FILE *)(void *)(web_tag + 7) ? (int)((char *)(void *)fh[h] - web_tag) : -1)
 #endif
 
 /* ------------------------------------------------------------- semihosting */
@@ -138,7 +138,10 @@ static uint32_t rt_semihost_(uint32_t op, uint32_t arg)
         if (!strcmp(name, ":semihosting-features")) { fh[h] = FEATURES; feat_pos[h] = 0; return (uint32_t)h; }
 #ifdef RT_WEB
         for (int k = 0; k < (int)(sizeof web_names / sizeof web_names[0]); k++)
-            if (!strcmp(name, web_names[k])) { fh[h] = (FILE *)(void *)(web_tag + k); return (uint32_t)h; }   /* same handle numbers as qemu */
+            if (!strcmp(name, web_names[k])) {
+                if (k == 6) fflush(NULL);          /* snapshot.ready: the card file is complete on the host */
+                fh[h] = (FILE *)(void *)(web_tag + k); return (uint32_t)h;   /* same handle numbers as qemu */
+            }
 #endif
         if (rename_from && !strncmp(name, rename_from, strlen(rename_from)))
             snprintf(path, sizeof path, "%s%s", rename_to, name + strlen(rename_from));

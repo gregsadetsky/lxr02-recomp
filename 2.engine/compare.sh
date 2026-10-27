@@ -2,7 +2,7 @@
 # compare two run directories file by file: ./compare.sh <scenario> <target a> <target b>
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd); S=$1; A="$HERE/out/$2/$S"; B="$HERE/out/$3/$S"; ok=1
-for x in dac1.raw dac2.raw lcd.txt midiout.txt params.txt stdout.txt; do
+for x in dac1.raw dac2.raw lcd.txt midiout.txt params.txt pattern.bin stdout.txt; do
   if cmp -s "$A/$x" "$B/$x"; then r=identical; else r=DIFFERS; ok=0; fi
   printf '%-12s %s\n' "$x" "$r"
 done

@@ -184,6 +184,37 @@ document.body.insertAdjacentHTML("beforeend", `<svg width="0" height="0" style="
   };
 }
 
+// save: the firmware autosaves the current kit and pattern to its card (/tmp, ~2 s after
+// the last edit); "save" asks the board to hand over the card once nothing is waiting to be
+// written. the sectors that differ from the base card are the groove (groove.js), stored on
+// the server; the link boots the same card.
+let pristine = null, saveTimer = 0;
+const MAX_GROOVE = 10 * 1024;
+function saveDone(msg) { clearTimeout(saveTimer); $("save").classList.remove("busy"); $("save").disabled = false; $("savemsg").textContent = msg || ""; }
+$("save").onclick = () => {
+  $("save").disabled = true; $("save").classList.add("busy"); $("savemsg").textContent = "saving...";
+  send("save");
+  saveTimer = setTimeout(() => saveDone("could not save (still writing?), try again"), 15000);
+};
+async function saved(card) {
+  try {
+    const raw = LXRGroove.diff(pristine, new Uint8Array(card));
+    const blob = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer());
+    if (blob.length > MAX_GROOVE) throw new Error(`too big (${blob.length} bytes)`);
+    const r = await fetch("/api/groove", { method: "POST", body: blob, headers: { "Content-Type": "application/octet-stream" } });
+    if (!r.ok) throw new Error(`server ${r.status}`);
+    const { id } = await r.json();
+    $("url").value = `${location.origin}/?g=${id}`;
+    $("copy").disabled = false;
+    window.__groove = { id, bytes: blob.length };
+    saveDone();
+  } catch (e) { saveDone("could not save: " + e.message); }
+}
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("url").value); $("savemsg").textContent = "copied"; }
+  catch { $("url").select(); $("savemsg").textContent = "press ctrl+c / cmd+c"; }
+};
+
 $("start").onclick = async () => {
   $("start").disabled = true;
   if (!supported) return;
@@ -205,12 +236,22 @@ $("start").onclick = async () => {
       for (const x of b) id[w++ % id.length] = x;
       Atomics.store(ic, 0, w);
     };
-    const card = await new Response((await fetch("card.img.gz")).body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    pristine = new Uint8Array(await new Response((await fetch("card.img.gz")).body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+    let cardBytes = pristine;
+    const gid = new URLSearchParams(location.search).get("g");
+    if (gid) {                                // a saved groove: its sectors applied to the base card
+      const r = await fetch(`/api/groove/${encodeURIComponent(gid)}`);
+      if (!r.ok) throw new Error(r.status === 404 ? "no such groove" : `groove: ${r.status}`);
+      const raw = new Uint8Array(await new Response(r.body.pipeThrough(new DecompressionStream("deflate"))).arrayBuffer());
+      cardBytes = LXRGroove.apply(pristine, raw);
+    }
+    const card = cardBytes.slice().buffer;
     const w = new Worker("worker.js");
     w.onmessage = (e) => {
       const m = e.data;
       if (m.log !== undefined) log(m.log);
       if (m.capture !== undefined) window.__capture = m.capture;
+      if (m.card !== undefined) saved(m.card);
       if (m.lcd !== undefined) {
         const p = m.lcd.split("|");            // "   1133 ms |line 1          |line 2          |"
         if (p.length >= 3 && (p[1].trim() || p[2].trim() || !$("lcd").textContent.startsWith("loading"))) $("lcd").textContent = p[1] + "\n" + p[2];
@@ -228,6 +269,7 @@ $("start").onclick = async () => {
     for (const l of (await r.text()).split("\n")) if (l.trim()) send(l);
     }
     w.postMessage({ engine: $("engine").value, card, ctrl, data, inCtrl, inData, maxFill: 3072, capture }, [card]);
+    $("save").disabled = false;
     const c = new Int32Array(ctrl);
     let under = 0;
     setInterval(() => {
@@ -235,7 +277,7 @@ $("start").onclick = async () => {
       if (u !== under) { under = u; log(`underruns ${u}, buffer ${Atomics.load(c, 0) - Atomics.load(c, 1)} frames`); }
     }, 500);
   } catch (e) {
-    $("msg").textContent = "could not start audio here: " + e.message;
+    $("msg").textContent = /groove/.test(e.message) ? "this link has no groove: " + e.message : "could not start audio here: " + e.message;
     started = false;
     if (!$("intro").open) $("intro").showModal();
     log(e);

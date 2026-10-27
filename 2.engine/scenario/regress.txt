@@ -17,3 +17,6 @@ psweep/04-zippe-params3
 psweep/04-zippe-vel
 psweep/04-zippe-dense
 psweep/04-zippe-pitch
+groove-edit1
+groove-save1
+groove-load1

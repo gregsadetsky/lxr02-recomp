@@ -1,0 +1,19 @@
+# written by 4.web/tests/test_save_e2e.py: a groove saved from the page + zippe notes
+card cards/sweep/groove-e2e.img
+seed c0ffee
+6000 midi 90 24 7f
+6750 midi 90 25 7f
+7500 midi 90 26 7f
+8250 midi 90 27 7f
+9000 midi 90 28 7f
+9750 midi 90 29 7f
+10500 midi 90 2a 7f
+11250 midi 90 24 64
+11500 midi 90 2a 50
+11750 midi 90 26 6e
+12000 midi 90 2a 50
+12250 midi 90 24 64
+12500 midi 90 2a 50
+12750 midi 90 26 6e
+13000 midi 90 29 5a
+14000 end

@@ -22,6 +22,8 @@ D="$HERE/out/$T${TAG:+-$TAG}/$S"; rm -rf "$D"; mkdir -p "$D"
 cp "$SC" "$D/scenario.txt"
 card=$(awk '$1 == "card" { print $2 }' "$SC")
 [ -n "$card" ] && cp "$HERE/$card" "$D/card.img"
+delta=$(awk '$1 == "delta" { print $2 }' "$SC")       # a saved groove (tools/groove-delta.py) on top of the card
+[ -n "$delta" ] && uv run --no-project python "$HERE/tools/groove-delta.py" apply "$D/card.img" "$HERE/$delta" "$D/card.img"
 [ -f "$HERE/scenario/$S.in" ] && cp "$HERE/scenario/$S.in" "$D/live.in"
 cd "$D"
 # qemu's semihosting command line is the -kernel path; the translation reports the same

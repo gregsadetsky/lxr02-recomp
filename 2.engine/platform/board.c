@@ -23,6 +23,8 @@
 #include "stm32f7xx_it.h"
 #include "Soundengine/globals.h"
 #include "Parameters.h"
+#include "Soundengine/Sequencer/sequencer.h"   /* seq_patternSet: the pattern dump at the end */
+extern uint8_t menu_playedPattern;
 extern uint8_t activeParameters[];   /* Core/Inc/menu/menu.h */
 extern uint8_t midi_MidiChannels[];
 extern uint8_t midiParser_txRxFilter;
@@ -40,6 +42,10 @@ volatile uint32_t lxr_fpscr;
 static const lxr_scenario *sc;
 static uint32_t ev_next;              /* next scenario event index */
 static int in_isr;                    /* no nested interrupts are modelled */
+static int save_pending;              /* "save" asked for, waiting for a quiet card */
+extern uint8_t preset_kitDirty, preset_patDirty;   /* presetManager.c: kit / pattern waiting for autosave */
+#include "ff.h"
+extern FIL SDFile;                    /* fatfs.c: the firmware's one file object; obj.fs is 0 while closed */
 /* exception entry/return as the cortex-m7 fpu does it: the handler runs with FPSCR's
  * control bits (AHP, DN, FZ, RMode) taken from FPDSCR, the interrupted code's FPSCR comes
  * back on return. the firmware sets FPDSCR.FZ (Soundengine.c:74), so float math inside
@@ -99,6 +105,7 @@ static int parse_event(char *e, lxr_event *ev)
     else if (!strncmp(e, "encoder ", 8)) { ev->kind = EV_ENCODER; ev->arg0 = (int32_t)strtol(e + 8, 0, 10); }
     else if (!strncmp(e, "encbutton ", 10)) { ev->kind = EV_ENC_BUTTON; ev->arg1 = (int32_t)strtol(e + 10, 0, 10); }
     else if (!strncmp(e, "adc ", 4)) { ev->kind = EV_ADC; ev->arg0 = (int32_t)strtol(e + 4, &e, 10); ev->arg1 = (int32_t)strtol(e, 0, 0); }
+    else if (!strncmp(e, "save", 4)) ev->kind = EV_SAVE;
     else if (!strncmp(e, "end", 3)) ev->kind = EV_END;
     else return 0;
     return 1;
@@ -114,7 +121,7 @@ static void load_scenario(void)
         char *s = line; while (*s == ' ' || *s == '\t') s++;
         if (!*s || *s == '\n' || *s == '#') continue;
         if (!strncmp(s, "seed ", 5)) { sc_loaded.rng_seed = (uint32_t)strtoul(s + 5, 0, 16); continue; }
-        if (!strncmp(s, "card ", 5)) continue;                       /* for the run script */
+        if (!strncmp(s, "card ", 5) || !strncmp(s, "delta ", 6)) continue;   /* for the run script */
         if (!strncmp(s, "live", 4)) { sc_live = 1; continue; }
         char *e; unsigned long ms = strtoul(s, &e, 10);
         if (e == s || n == sizeof sc_events / sizeof sc_events[0]) { fprintf(stderr, "board: scenario line %lu: %s", (unsigned long)ln, line); exit(2); }
@@ -389,11 +396,24 @@ static void board_finish(void)
            midi_MidiChannels[3], midi_MidiChannels[4], midi_MidiChannels[5], midi_MidiChannels[6], midi_MidiChannels[7], midiParser_txRxFilter, menu_activePage);
     printf("board: midi note filter (PAR_MIDI_NOTE1..7): %u %u %u %u %u %u %u\n", activeParameters[PAR_MIDI_NOTE1], activeParameters[PAR_MIDI_NOTE1+1],
            activeParameters[PAR_MIDI_NOTE1+2], activeParameters[PAR_MIDI_NOTE1+3], activeParameters[PAR_MIDI_NOTE1+4], activeParameters[PAR_MIDI_NOTE1+5], activeParameters[PAR_MIDI_NOTE1+6]);
+    printf("board: save pending %d, kit dirty %u, pattern dirty %u, file open %d\n", save_pending, preset_kitDirty, preset_patDirty, SDFile.obj.fs != 0);
     printf("board: renders %u, late %u, tim2 %u, tim14 %u, rx %u/%u\n", n_renders, n_late, n_tim2, n_tim14, n_rx_delivered, n_rx_dropped);
     {   /* the firmware's edit buffer at the end of the run, to check kit loads byte for byte */
         FILE *fp = fopen("params.txt", "w");
         for (int i = 0; i < NUM_PARAMS; i++) fprintf(fp, "%02x%s", activeParameters[i], (i % 32 == 31) ? "\n" : " ");
         fprintf(fp, "\n"); fclose(fp);
+    }
+    {   /* the playing pattern as the sequencer holds it (what tmp.pat saves): to check a saved groove */
+        FILE *fp = fopen("pattern.bin", "wb");
+        const uint8_t p = menu_playedPattern;
+        fwrite(&p, 1, 1, fp);
+        fwrite(seq_patternSet.seq_subStepPattern[p], sizeof seq_patternSet.seq_subStepPattern[p], 1, fp);
+        fwrite(seq_patternSet.seq_stepTiming[p], sizeof seq_patternSet.seq_stepTiming[p], 1, fp);
+        for (int bar = 0; bar < NUM_BARS; bar++) fwrite(seq_patternSet.seq_mainSteps[bar][p], sizeof seq_patternSet.seq_mainSteps[bar][p], 1, fp);
+        fwrite(seq_patternSet.length[p], sizeof seq_patternSet.length[p], 1, fp);
+        fwrite(&seq_patternSet.shuffle[p], 1, 1, fp);
+        fwrite(&seq_patternSet.kitNr[p], 1, 1, fp);
+        fclose(fp);
     }
     fclose(f_dac1); fclose(f_dac2); fclose(f_lcd); fclose(f_midi);
     if (card) fclose(card);
@@ -435,10 +455,30 @@ static void apply_event(const lxr_event *e)
     case EV_ADC:
         if (e->arg0 >= 0 && e->arg0 < 16) { adc_values[e->arg0] = (uint16_t)e->arg1; if (adc_dma && (uint32_t)e->arg0 < adc_len) adc_dma[e->arg0] = (uint16_t)e->arg1; }
         break;
+    case EV_SAVE:
+        save_pending = 1;
+        break;
     case EV_END:
         board_finish();
         break;
     }
+}
+
+/* ---------------------------------------------------------------- save
+ * "save": the firmware keeps the current kit and pattern in /tmp/tmp.snd and tmp.pat,
+ * written about 2 s after the last edit (presetManager.c preset_processTimer). once nothing
+ * is waiting to be written (preset_kitDirty, preset_patDirty clear) and no file is open
+ * (every save goes through SDFile; f_close syncs and clears SDFile.obj.fs, ff.c), the card
+ * is flushed and "snapshot.ready" is written: the host then takes the card. (TIM2 is no
+ * signal: loadTmpFolderFiles starts its interrupt at boot and returns without stopping it.) */
+static void save_poll(void)
+{
+    if (preset_kitDirty || preset_patDirty || SDFile.obj.fs) return;
+    save_pending = 0;
+    if (card) fflush(card);
+    FILE *f = fopen("snapshot.ready", "wb");
+    if (f) { fputc(1, f); fclose(f); }
+    printf("board: card ready to save at %lu ms\n", now_ms());
 }
 
 /* ------------------------------------------------------------- live input
@@ -488,6 +528,7 @@ static void dma_event(void)
         n_late++;
     }
     if (sc_live) live_poll();
+    if (save_pending) save_poll();
     /* the round that just finished played what the dma was pointed at */
     if (i2s_buf[0]) fwrite(i2s_snap[0], 2, i2s_size[0], f_dac1);
     if (i2s_buf[1]) fwrite(i2s_snap[1], 2, i2s_size[1], f_dac2);

@@ -42,6 +42,7 @@ typedef enum {
     EV_ENCODER,      /* arg0 = detents (+/-) */
     EV_ENC_BUTTON,   /* arg1 = 1 down / 0 up */
     EV_ADC,          /* arg0 = adc_buf index, arg1 = raw 16-bit value */
+    EV_SAVE,         /* snapshot the card as soon as no save is pending or running */
     EV_END           /* stop the run, write outputs */
 } lxr_event_kind;
 typedef struct {

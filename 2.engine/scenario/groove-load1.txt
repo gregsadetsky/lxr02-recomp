@@ -1,0 +1,5 @@
+# the web card + the groove saved after groove-edit1 (516 bytes, tools/groove-delta.py): must restore its kit and pattern
+card cards/web.img
+delta scenario/groove1.bin
+seed c0ffee
+6000 end

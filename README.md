@@ -9,7 +9,7 @@ instruction to wasm. output is bit identical to the same build on qemu's cortex-
 - `3.recomp/` arm elf to c to wasm
 - `4.web/` the page
 
-run: `uv run gunicorn app:app`
+run: `GROOVE_DIR=/tmp/grooves uv run gunicorn app:app` (GROOVE_DIR: where saved grooves go, see .env.example)
 
 gpl-3.0
 
@@ -29,6 +29,6 @@ cmake --build build-fw/release              # erica's build: the source list and
 2.engine/build.sh arm && 4.web/build.sh     # -> 4.web/site
 ```
 
-tests: `2.engine/check.sh` (translation vs qemu golden hashes, `check.sh update` makes them),
+tests: `uv run pytest tests` (server), `4.web/tests/` (save: js vs python, end to end), `2.engine/check.sh` (translation vs qemu golden hashes, `check.sh update` makes them),
 `3.recomp/test/build.sh` (fp instructions, qemu vs translation), and per scenario
 `cd 2.engine && ./run.sh qemu kit-zippe && ./run.sh recompw kit-zippe && ./compare.sh kit-zippe qemu recompw`
