@@ -32,9 +32,6 @@ onmessage = async (ev) => {
         lcd = lines(lcd + dec.decode(b), (l) => postMessage({ lcd: l }));
       } else if (kind === 3) {                // midiout.txt
         midi = lines(midi + dec.decode(b), (l) => postMessage({ midiout: l }));
-      } else if (kind === 6) {                // snapshot.ready: the firmware's saves are on the card
-        const cur = mod.FS.readFile("card.img");
-        postMessage({ card: cur }, [cur.buffer]);
       }
     },
     readByte() {                              // live.in: input lines from the page
@@ -65,7 +62,6 @@ onmessage = async (ev) => {
       FS.createDevice("/", "lcd.txt", null, out(2));
       FS.createDevice("/", "midiout.txt", null, out(3));
       FS.createDevice("/", "live.in", () => host.readByte(), null);
-      FS.createDevice("/", "snapshot.ready", null, out(6));
       files(FS);                              // the board's constructor runs before main here
     }];
     opts.locateFile = (f) => "plain/" + f;

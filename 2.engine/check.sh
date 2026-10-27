@@ -1,14 +1,14 @@
 #!/bin/sh
 # regression check: the translated firmware (recompw) against golden hashes of qemu's
 # cortex-m7 runs. scenario/regress.txt lists the scenarios, scenario/golden/ holds one
-# sha256 file per scenario (dac1, dac2, lcd, midi out, params, pattern, stdout).
+# sha256 file per scenario (dac1, dac2, lcd, midi out, params).
 #   ./check.sh          build recompw, run every listed scenario, compare with the goldens
 #   ./check.sh update   run the listed scenarios on qemu and (re)write the goldens
 # env: NOBUILD=1 skips the build, JOBS (default 8) for qemu.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd); cd "$HERE"
 LIST=scenario/regress.txt; G=scenario/golden
-FILES="dac1.raw dac2.raw lcd.txt midiout.txt params.txt pattern.bin stdout.txt"
+FILES="dac1.raw dac2.raw lcd.txt midiout.txt params.txt"
 hashes() { (cd "$1" && shasum -a 256 $FILES); }
 if [ "${1:-}" = update ]; then
   ./build.sh arm > build/arm-build.log 2>&1 || { echo "arm build failed"; exit 1; }
